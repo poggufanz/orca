@@ -4,6 +4,7 @@ import {
   calculateTargetDisplayBounds,
   type WorkspaceDisplayInfo
 } from '../../shared/floating-workspace-display'
+import { isBackgroundLaunch } from './foreground-activation-policy'
 
 const MINIMIZED_COORD_SENTINEL = -10000
 const RESTORE_SETTLE_MS = 200
@@ -204,7 +205,7 @@ export function restorePopoutWindow(
   } else if (typeof window.setBounds === 'function') {
     window.setBounds(resolveRestoreBounds(targetDisplay))
   }
-  if (typeof window.focus === 'function') {
+  if (!isBackgroundLaunch() && typeof window.focus === 'function') {
     window.focus()
   }
   setTimeout(() => {

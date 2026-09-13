@@ -1,4 +1,5 @@
 import { Check, ExternalLink, Minimize2, Monitor, Sparkles } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -92,9 +93,17 @@ export function FloatingTerminalDisplaysMenu({
                 }
               }}
             >
-              <div className="mr-2 flex min-w-0 flex-1 items-center gap-2 truncate">
+              <div className="mr-2 flex min-w-0 flex-1 items-center gap-2">
                 <Monitor className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{display.label || `Monitor ${index + 1}`}</span>
+                <span className="min-w-0 truncate">{display.label || `Monitor ${index + 1}`}</span>
+                {display.isPrimary ? (
+                  <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[9px] font-medium">
+                    {translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.primaryDisplay',
+                      'Primary'
+                    )}
+                  </Badge>
+                ) : null}
               </div>
               {isCurrent ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
             </DropdownMenuItem>

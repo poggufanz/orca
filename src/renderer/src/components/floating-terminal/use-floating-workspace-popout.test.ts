@@ -6,6 +6,11 @@ import {
   isFloatingWorkspacePopoutDetached,
   resetFloatingWorkspacePopoutSharedStateForTest
 } from './floating-workspace-popout-shared-state'
+import { webviewRegistry } from '../browser-pane/host-guest/webview-registry'
+import {
+  clearBrowserPageProgress,
+  getBrowserPageProgress
+} from '../browser-pane/host-guest/browser-page-progress-retention'
 import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
 
 const mockDisplays: WorkspaceDisplayInfo[] = [
@@ -140,13 +145,50 @@ describe('useFloatingWorkspacePopout', () => {
     })
     expect(result.current.isDetached).toBe(true)
 
-    act(() => {
-      result.current.dock()
+    await act(async () => {
+      await result.current.dock()
     })
 
     expect(mockPopup.close).toHaveBeenCalled()
     expect(result.current.isDetached).toBe(false)
     expect(result.current.portalContainer).toBeNull()
+  })
+
+  it('captures live page progress before closing the popout window when docking', async () => {
+    let resolveCapture: ((value: unknown) => void) | null = null
+    const webview = {
+      executeJavaScript: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveCapture = resolve
+          })
+      )
+    } as unknown as Electron.WebviewTag
+    webviewRegistry.set('tab-dock', webview)
+    clearBrowserPageProgress('tab-dock')
+    try {
+      const { result } = renderHook(() => useFloatingWorkspacePopout())
+      act(() => {
+        result.current.detach()
+      })
+
+      let dockPromise: Promise<void> | undefined
+      await act(async () => {
+        dockPromise = result.current.dock()
+        await Promise.resolve()
+      })
+      expect(mockPopup.close).not.toHaveBeenCalled()
+
+      await act(async () => {
+        resolveCapture?.({ url: 'https://example.com/', scrollX: 0, scrollY: 120, media: null })
+        await dockPromise
+      })
+      expect(mockPopup.close).toHaveBeenCalled()
+      expect(getBrowserPageProgress('tab-dock')?.scrollY).toBe(120)
+    } finally {
+      webviewRegistry.delete('tab-dock')
+      clearBrowserPageProgress('tab-dock')
+    }
   })
 
   it('routes moveToNextDisplay to detach on second monitor when not yet detached', async () => {
@@ -207,15 +249,15 @@ describe('useFloatingWorkspacePopout', () => {
     expect(result.current.currentDisplayId).toBe(1)
   })
 
-  it('publishes detached state for dialog scoping and clears it on dock', () => {
+  it('publishes detached state for dialog scoping and clears it on dock', async () => {
     const { result } = renderHook(() => useFloatingWorkspacePopout())
     expect(isFloatingWorkspacePopoutDetached()).toBe(false)
     act(() => {
       result.current.detach()
     })
     expect(isFloatingWorkspacePopoutDetached()).toBe(true)
-    act(() => {
-      result.current.dock()
+    await act(async () => {
+      await result.current.dock()
     })
     expect(isFloatingWorkspacePopoutDetached()).toBe(false)
   })

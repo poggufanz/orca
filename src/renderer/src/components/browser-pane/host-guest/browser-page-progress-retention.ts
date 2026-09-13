@@ -1,3 +1,4 @@
+import { isTimestampParameterHost } from '../../../../../shared/browser-url-equivalence'
 import { webviewRegistry } from './webview-registry'
 
 export type BrowserPageMediaProgress = {
@@ -17,6 +18,8 @@ export type BrowserPageProgressSnapshot = {
 const progressByTabId = new Map<string, BrowserPageProgressSnapshot>()
 const pendingRestorationByTabId = new Map<string, BrowserPageProgressSnapshot>()
 let progressTrackerInterval: number | null = null
+
+const PROGRESS_TRACKER_INTERVAL_MS = 5000
 
 const CAPTURE_SCRIPT = `(() => {
   try {
@@ -95,15 +98,7 @@ export function formatRestoredBrowserUrl(
   }
   try {
     const parsed = new URL(rawUrl)
-    const hostname = parsed.hostname.toLowerCase()
-    const isYouTube =
-      hostname === 'www.youtube.com' ||
-      hostname === 'youtube.com' ||
-      hostname === 'm.youtube.com' ||
-      hostname === 'music.youtube.com' ||
-      hostname === 'youtu.be'
-
-    if (isYouTube) {
+    if (isTimestampParameterHost(parsed.hostname)) {
       const seconds = Math.floor(media.currentTime)
       if (seconds > 0) {
         parsed.searchParams.set('t', `${seconds}s`)
@@ -251,6 +246,8 @@ export function ensureBrowserPageProgressTracking(): void {
   if (!timerFn) {
     return
   }
+  // Why: each tick runs a shadow-DOM traversal per live page; dock/detach capture
+  // explicitly, so this is only a crash/OS-close safety net and can be sparse.
   progressTrackerInterval = timerFn(() => {
     if (webviewRegistry.size === 0) {
       return
@@ -258,7 +255,7 @@ export function ensureBrowserPageProgressTracking(): void {
     for (const [tabId, webview] of webviewRegistry.entries()) {
       void captureBrowserPageProgress(tabId, webview)
     }
-  }, 1000) as unknown as number
+  }, PROGRESS_TRACKER_INTERVAL_MS) as unknown as number
 }
 
 export function stopBrowserPageProgressTracking(): void {

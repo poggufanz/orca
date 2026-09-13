@@ -16,7 +16,9 @@ export function installPrivilegedWindowNavigationPolicy(contents: WebContents): 
           minWidth: 420,
           minHeight: 280,
           autoHideMenuBar: true,
-          show: true,
+          // Why: stay hidden so the reveal can honor the launch policy —
+          // show:true activates the window and steals OS focus in automated runs.
+          show: false,
           webPreferences: {
             webviewTag: true,
             contextIsolation: true,

@@ -1,6 +1,6 @@
 /** @vitest-environment happy-dom */
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { FloatingTerminalDisplaysMenu } from './FloatingTerminalDisplaysMenu'
 import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
@@ -25,6 +25,10 @@ const mockDisplays: WorkspaceDisplayInfo[] = [
 ]
 
 describe('FloatingTerminalDisplaysMenu', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   it('does not immediately call onMoveToNextDisplay when opening the menu', () => {
     const onMoveToDisplay = vi.fn()
     const onMoveToNextDisplay = vi.fn()
@@ -66,5 +70,27 @@ describe('FloatingTerminalDisplaysMenu', () => {
     )
 
     expect(container.firstChild).toBeNull()
+  })
+
+  it('badges the primary display so an OS label cannot hide which screen it is', async () => {
+    render(
+      <TooltipProvider>
+        <FloatingTerminalDisplaysMenu
+          displays={mockDisplays}
+          currentDisplayId={1}
+          isDetached={true}
+          controlButtonClassName="test-btn"
+          onMoveToDisplay={vi.fn()}
+          onMoveToNextDisplay={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const triggerButton = screen.getByRole('button')
+    fireEvent.pointerDown(triggerButton, { button: 0 })
+    fireEvent.click(triggerButton)
+
+    expect(await screen.findByText('Primary')).toBeTruthy()
+    expect(screen.getAllByText('Primary')).toHaveLength(1)
   })
 })

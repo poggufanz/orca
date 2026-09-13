@@ -12,6 +12,7 @@ import type { Store } from '../persistence'
 import { closeDashboardPopout } from './dashboard-popout-window'
 import {
   closeFloatingWorkspacePopout,
+  closeIdentifyWindows,
   setFloatingWorkspacePopoutWindow
 } from './floating-workspace-display-manager'
 import {
@@ -225,6 +226,7 @@ export function createMainWindow(
   mainWindow.on('closed', () => {
     closeDashboardPopout()
     closeFloatingWorkspacePopout()
+    closeIdentifyWindows()
     state.clearInitialRevealFallbackTimer()
     closeLifecycle.dispose()
     focus.dispose()

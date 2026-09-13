@@ -172,4 +172,28 @@ describe('browser-page-progress-retention', () => {
     ensureBrowserPageProgressTracking()
     stopBrowserPageProgressTracking()
   })
+
+  it('samples live page progress on a low-frequency safety-net interval', async () => {
+    vi.useFakeTimers()
+    try {
+      const webview = {
+        executeJavaScript: vi.fn().mockResolvedValue({
+          url: 'https://example.com',
+          scrollX: 0,
+          scrollY: 40,
+          media: null
+        })
+      } as unknown as Electron.WebviewTag
+      webviewRegistry.set('tab-1', webview)
+
+      ensureBrowserPageProgressTracking()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(webview.executeJavaScript).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(4000)
+      expect(webview.executeJavaScript).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

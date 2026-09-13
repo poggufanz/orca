@@ -4,6 +4,7 @@ import {
   findNextDisplay,
   type WorkspaceDisplayInfo
 } from '../../shared/floating-workspace-display'
+import { isBackgroundLaunch, showWindowWithoutStealingFocus } from './foreground-activation-policy'
 import {
   getPopoutCurrentDisplayId,
   installPopoutRestoreTracking,
@@ -29,6 +30,13 @@ export function setFloatingWorkspacePopoutWindow(window: BrowserWindow | null): 
   floatingWorkspacePopoutWindow = window
   if (window && !window.isDestroyed()) {
     installPopoutRestoreTracking(window, getConnectedDisplays)
+    // Why: the popout is created hidden (show:false); reveal it through the
+    // launch policy so background/headless runs never take OS focus.
+    if (typeof window.once === 'function') {
+      window.once('ready-to-show', () => {
+        showWindowWithoutStealingFocus(window)
+      })
+    }
   } else {
     resetPopoutRestoreState()
   }
@@ -76,7 +84,7 @@ export function focusFloatingWorkspacePopout(): boolean {
     const isMin = typeof win.isMinimized === 'function' ? win.isMinimized() : false
     if (isMin) {
       restoreFloatingWorkspacePopout()
-    } else if (typeof win.focus === 'function') {
+    } else if (!isBackgroundLaunch() && typeof win.focus === 'function') {
       win.focus()
     }
     return true
@@ -98,8 +106,8 @@ export function getConnectedDisplays(): WorkspaceDisplayInfo[] {
     return screen.getAllDisplays().map((d, index) => {
       const displayNumber = index + 1
       const isPrimary = d.id === primary.id
-      const label =
-        d.label || (isPrimary ? `Monitor ${displayNumber} (Primary)` : `Monitor ${displayNumber}`)
+      // Why: primary status travels as the isPrimary flag so each surface renders its own marker.
+      const label = d.label || `Monitor ${displayNumber}`
       return {
         id: d.id,
         label,

@@ -189,9 +189,12 @@ export function useBrowserPageChromeFocus({
       event.stopImmediatePropagation()
       focusAddressBarNow()
     }
-    window.addEventListener('keydown', handleKeyDown, true)
-    return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [chromeShortcutScope, focusAddressBarNow, keybindings, workspaceId])
+    // Why: a detached floating workspace portals the pane into the popout window,
+    // whose keydown events never reach the main window's listener.
+    const targetWindow = addressBarInputRef.current?.ownerDocument?.defaultView ?? window
+    targetWindow.addEventListener('keydown', handleKeyDown, true)
+    return () => targetWindow.removeEventListener('keydown', handleKeyDown, true)
+  }, [addressBarInputRef, chromeShortcutScope, focusAddressBarNow, keybindings, workspaceId])
 
   useEffect(() => {
     if (!isActive) {

@@ -156,6 +156,8 @@ export function identifyDisplays(): boolean {
     return true
   } catch (err) {
     console.warn('[floating-workspace] Failed to identify displays:', err)
+    // Why: a mid-loop throw must not strand overlays already pushed.
+    closeIdentifyWindows()
     return false
   }
 }

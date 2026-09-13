@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { BrowserWindow } from 'electron'
 import {
   closeIdentifyWindows,
   focusFloatingWorkspacePopout,
@@ -68,6 +69,17 @@ describe('floating-workspace-display-manager', () => {
     expect(displays[1].isPrimary).toBe(false)
   })
 
+  it('leaves the primary marker out of the fallback label so the menu can badge it', () => {
+    mockScreen.getAllDisplays.mockReturnValue([
+      { ...display1, label: '' },
+      { ...display2, label: '' }
+    ])
+
+    const displays = getConnectedDisplays()
+    expect(displays[0].label).toBe('Monitor 1')
+    expect(displays[1].label).toBe('Monitor 2')
+  })
+
   it('moves window to target display', () => {
     const mockWindow = {
       isDestroyed: vi.fn(() => false),
@@ -129,6 +141,79 @@ describe('floating-workspace-display-manager', () => {
     mockWindow.isMinimized.mockReturnValue(false)
     expect(focusFloatingWorkspacePopout()).toBe(true)
     expect(mockWindow.focus).toHaveBeenCalledTimes(2)
+  })
+
+  it('reveals the popout window without stealing focus when it is ready', () => {
+    const readyToShow: (() => void)[] = []
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      once: vi.fn((event: string, cb: () => void) => {
+        if (event === 'ready-to-show') {
+          readyToShow.push(cb)
+        }
+      }),
+      show: vi.fn(),
+      showInactive: vi.fn()
+    }
+
+    setFloatingWorkspacePopoutWindow(mockWindow as never)
+    expect(readyToShow).toHaveLength(1)
+
+    readyToShow[0]()
+    expect(mockWindow.show).toHaveBeenCalled()
+    expect(mockWindow.showInactive).not.toHaveBeenCalled()
+  })
+
+  it('keeps the popout hidden on a windowless background launch', () => {
+    const original = process.env.ORCA_BACKGROUND_LAUNCH
+    const readyToShow: (() => void)[] = []
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      once: vi.fn((event: string, cb: () => void) => {
+        if (event === 'ready-to-show') {
+          readyToShow.push(cb)
+        }
+      }),
+      show: vi.fn(),
+      showInactive: vi.fn()
+    }
+
+    try {
+      process.env.ORCA_BACKGROUND_LAUNCH = '1'
+      setFloatingWorkspacePopoutWindow(mockWindow as never)
+      readyToShow[0]()
+      expect(mockWindow.show).not.toHaveBeenCalled()
+      expect(mockWindow.showInactive).not.toHaveBeenCalled()
+    } finally {
+      process.env.ORCA_BACKGROUND_LAUNCH = original
+    }
+  })
+
+  it('does not steal OS focus in a background launch', () => {
+    const original = process.env.ORCA_BACKGROUND_LAUNCH
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      isMinimized: vi.fn(() => true),
+      isMaximized: vi.fn(() => false),
+      getBounds: vi.fn(() => ({ x: 1920, y: 0, width: 1920, height: 1080 })),
+      setBounds: vi.fn(),
+      restore: vi.fn(),
+      focus: vi.fn()
+    }
+
+    try {
+      process.env.ORCA_BACKGROUND_LAUNCH = '1'
+      setFloatingWorkspacePopoutWindow(mockWindow as never)
+      expect(restoreFloatingWorkspacePopout()).toBe(true)
+      mockWindow.isMinimized.mockReturnValue(false)
+      expect(focusFloatingWorkspacePopout()).toBe(true)
+      expect(mockWindow.focus).not.toHaveBeenCalled()
+    } finally {
+      process.env.ORCA_BACKGROUND_LAUNCH = original
+    }
   })
 
   it('restores window bounds to last known bounds on restore', () => {
@@ -243,6 +328,34 @@ describe('floating-workspace-display-manager', () => {
 
   it('cleans up identify windows when closed', () => {
     expect(() => closeIdentifyWindows()).not.toThrow()
+  })
+
+  it('closes overlays already created when a later overlay fails to build', () => {
+    const closeOverlay = vi.fn()
+    const overlay = {
+      setIgnoreMouseEvents: vi.fn(),
+      loadURL: vi.fn(),
+      once: vi.fn(),
+      isDestroyed: vi.fn(() => false),
+      close: closeOverlay
+    }
+    const browserWindowMock = vi.mocked(BrowserWindow)
+    browserWindowMock
+      .mockImplementationOnce(function overlayWindow() {
+        return overlay
+      } as never)
+      .mockImplementationOnce(function throwingWindow() {
+        throw new Error('overlay creation failed')
+      } as never)
+
+    const original = process.env.ORCA_BACKGROUND_LAUNCH
+    try {
+      delete process.env.ORCA_BACKGROUND_LAUNCH
+      expect(identifyDisplays()).toBe(false)
+    } finally {
+      process.env.ORCA_BACKGROUND_LAUNCH = original
+    }
+    expect(closeOverlay).toHaveBeenCalled()
   })
 
   it('rejects non-integer display ids without touching bounds', () => {

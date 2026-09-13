@@ -123,6 +123,7 @@ describe('privileged window navigation policy', () => {
       parent: null,
       width: 960,
       height: 640,
+      show: false,
       webPreferences: {
         webviewTag: true,
         contextIsolation: true,

@@ -42,8 +42,10 @@ export function useFloatingWorkspacePopout() {
     })
   }, [])
 
-  const dock = useCallback((): void => {
-    void captureAllLiveBrowserPageProgress()
+  const dock = useCallback(async (): Promise<void> => {
+    // Why: the capture runs executeJavaScript against live guests — closing the
+    // popout first destroys them and loses the scroll/playback state.
+    await captureAllLiveBrowserPageProgress()
     if (refreshTimeoutRef.current !== null) {
       window.clearTimeout(refreshTimeoutRef.current)
       refreshTimeoutRef.current = null
