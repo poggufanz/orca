@@ -72,8 +72,10 @@ describe('useFloatingWorkspacePopout', () => {
       ...window.api,
       floatingWorkspace: {
         getDisplays: vi.fn().mockResolvedValue(mockDisplays),
+        getCurrentDisplayId: vi.fn().mockResolvedValue(1),
         moveToDisplay: vi.fn().mockResolvedValue(true),
         moveToNextDisplay: vi.fn().mockResolvedValue(true),
+        identifyDisplays: vi.fn().mockResolvedValue(true),
         minimize: vi.fn().mockResolvedValue(true),
         restore: vi.fn().mockResolvedValue(true),
         isMinimized: vi.fn().mockResolvedValue(false),
@@ -188,5 +190,26 @@ describe('useFloatingWorkspacePopout', () => {
       result.current.focus()
     })
     expect(window.api.floatingWorkspace.focus).toHaveBeenCalled()
+  })
+
+  it('triggers identifyDisplays IPC and tracks target display in moveToDisplay', async () => {
+    const { result } = renderHook(() => useFloatingWorkspacePopout())
+
+    act(() => {
+      result.current.identifyDisplays()
+    })
+    expect(window.api.floatingWorkspace.identifyDisplays).toHaveBeenCalled()
+
+    act(() => {
+      result.current.detach(2)
+    })
+    expect(result.current.currentDisplayId).toBe(2)
+
+    await act(async () => {
+      result.current.moveToDisplay(1)
+      await Promise.resolve()
+    })
+    expect(window.api.floatingWorkspace.moveToDisplay).toHaveBeenCalledWith(1)
+    expect(result.current.currentDisplayId).toBe(1)
   })
 })

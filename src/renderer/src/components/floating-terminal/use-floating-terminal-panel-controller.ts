@@ -25,10 +25,13 @@ export function useFloatingTerminalPanelController({
   onOpenChange,
   tourInteractionSnapshot
 }: FloatingTerminalPanelProps) {
+  const popout = useFloatingWorkspacePopout()
+  const isSurfaceActive = popout.isDetached || open
+
   const storeState = useFloatingTerminalPanelStoreState()
   const shortcutDetails = useFloatingTerminalShortcutDetails()
   const localState = useFloatingTerminalPanelLocalState()
-  const items = useFloatingTerminalPanelItems({ ...storeState, open })
+  const items = useFloatingTerminalPanelItems({ ...storeState, open: isSurfaceActive })
 
   useContextualTour('floating-workspace', open, 'floating_workspace_visible', {
     recordFeatureInteraction: tourInteractionSnapshot?.recordFeatureInteractionForTour ?? false,
@@ -38,10 +41,10 @@ export function useFloatingTerminalPanelController({
 
   const editorCloseQueue = useFloatingTerminalEditorCloseQueue({ ...storeState, ...localState })
   const geometry = useFloatingTerminalPanelGeometry({ ...storeState, ...localState })
-  useFloatingTerminalInitialFocusEffects({ ...items, ...localState, open })
+  useFloatingTerminalInitialFocusEffects({ ...items, ...localState, open: isSurfaceActive })
   const orchestrationVisibility = useFloatingTerminalOrchestrationVisibility({
     ...localState,
-    open
+    open: isSurfaceActive
   })
   const createActions = useFloatingTerminalCreateActions({
     ...storeState,
@@ -59,8 +62,11 @@ export function useFloatingTerminalPanelController({
     ...localState,
     ...items
   })
-  const maximize = useFloatingTerminalPanelMaximize({ ...storeState, ...localState, open })
-  const popout = useFloatingWorkspacePopout()
+  const maximize = useFloatingTerminalPanelMaximize({
+    ...storeState,
+    ...localState,
+    open: isSurfaceActive
+  })
   const shortcuts = useFloatingTerminalPanelShortcuts({
     ...localState,
     ...items,
@@ -72,9 +78,9 @@ export function useFloatingTerminalPanelController({
     isDetached: popout.isDetached,
     minimize: popout.minimize
   })
-  useFloatingTerminalGlobalShortcutListeners({ ...localState, ...shortcuts, open })
-  useFloatingTerminalGuestBridge({ ...shortcuts, open })
-  useFloatingTerminalFocusLifecycle({ ...localState, ...items, open })
+  useFloatingTerminalGlobalShortcutListeners({ ...localState, ...shortcuts, open: isSurfaceActive })
+  useFloatingTerminalGuestBridge({ ...shortcuts, open: isSurfaceActive })
+  useFloatingTerminalFocusLifecycle({ ...localState, ...items, open: isSurfaceActive })
   const dragActions = createFloatingTerminalPanelDragActions({
     ...localState,
     ...geometry,
@@ -85,6 +91,7 @@ export function useFloatingTerminalPanelController({
 
   return {
     open,
+    isSurfaceActive,
     onOpenChange,
     ...storeState,
     ...shortcutDetails,

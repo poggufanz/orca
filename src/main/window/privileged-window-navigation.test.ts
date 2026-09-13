@@ -120,6 +120,7 @@ describe('privileged window navigation policy', () => {
     expect(result.action).toBe('allow')
     expect(result.overrideBrowserWindowOptions).toMatchObject({
       title: 'Orca Floating Workspace',
+      parent: null,
       width: 960,
       height: 640,
       webPreferences: {

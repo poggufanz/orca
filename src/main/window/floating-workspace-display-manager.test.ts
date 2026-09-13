@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  closeIdentifyWindows,
   focusFloatingWorkspacePopout,
   getConnectedDisplays,
+  getCurrentDisplayId,
   getFloatingWorkspacePopoutWindow,
+  identifyDisplays,
   isFloatingWorkspacePopoutMinimized,
   minimizeFloatingWorkspacePopout,
   moveWindowToDisplay,
@@ -126,5 +129,74 @@ describe('floating-workspace-display-manager', () => {
     mockWindow.isMinimized.mockReturnValue(false)
     expect(focusFloatingWorkspacePopout()).toBe(true)
     expect(mockWindow.focus).toHaveBeenCalledTimes(2)
+  })
+
+  it('restores window bounds to last known bounds on restore', () => {
+    const listeners: Record<string, () => void> = {}
+    const bounds = { x: 1920, y: 100, width: 800, height: 600 }
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      isMinimized: vi.fn(() => true),
+      isMaximized: vi.fn(() => false),
+      getBounds: vi.fn(() => bounds),
+      setBounds: vi.fn(),
+      restore: vi.fn(),
+      focus: vi.fn(),
+      on: vi.fn((event: string, cb: () => void) => {
+        listeners[event] = cb
+      })
+    }
+
+    setFloatingWorkspacePopoutWindow(mockWindow as never)
+
+    // Simulate move while window is normal (not minimized)
+    mockWindow.isMinimized.mockReturnValue(false)
+    mockWindow.getBounds.mockReturnValue({ x: 2000, y: 150, width: 900, height: 700 })
+    listeners['moved']?.()
+
+    // Now window gets minimized
+    mockWindow.isMinimized.mockReturnValue(true)
+
+    // Calling restore should apply the updated bounds
+    restoreFloatingWorkspacePopout()
+    expect(mockWindow.setBounds).toHaveBeenCalledWith({ x: 2000, y: 150, width: 900, height: 700 })
+
+    // OS-level restore event should also apply bounds
+    mockWindow.setBounds.mockClear()
+    listeners['restore']?.()
+    expect(mockWindow.setBounds).toHaveBeenCalledWith({ x: 2000, y: 150, width: 900, height: 700 })
+  })
+
+  it('gets current display ID for active popout window', () => {
+    expect(getCurrentDisplayId()).toBeNull()
+
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      isMinimized: vi.fn(() => false),
+      isMaximized: vi.fn(() => false),
+      getBounds: vi.fn(() => ({ x: 1920, y: 0, width: 1920, height: 1080 })),
+      on: vi.fn()
+    }
+
+    mockScreen.getDisplayMatching.mockReturnValue(display2)
+    setFloatingWorkspacePopoutWindow(mockWindow as never)
+
+    expect(getCurrentDisplayId()).toBe(2)
+  })
+
+  it('skips display identification window creation when ORCA_BACKGROUND_LAUNCH=1', () => {
+    const original = process.env.ORCA_BACKGROUND_LAUNCH
+    try {
+      process.env.ORCA_BACKGROUND_LAUNCH = '1'
+      expect(identifyDisplays()).toBe(true)
+    } finally {
+      process.env.ORCA_BACKGROUND_LAUNCH = original
+    }
+  })
+
+  it('cleans up identify windows when closed', () => {
+    expect(() => closeIdentifyWindows()).not.toThrow()
   })
 })

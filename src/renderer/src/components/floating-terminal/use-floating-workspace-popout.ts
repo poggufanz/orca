@@ -4,6 +4,7 @@ import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace
 export function useFloatingWorkspacePopout() {
   const [isDetached, setIsDetached] = useState(false)
   const [displays, setDisplays] = useState<WorkspaceDisplayInfo[]>([])
+  const [currentDisplayId, setCurrentDisplayId] = useState<number | null>(null)
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
   const [popupWindow, setPopupWindow] = useState<Window | null>(null)
   const popupRef = useRef<Window | null>(null)
@@ -28,6 +29,14 @@ export function useFloatingWorkspacePopout() {
     }
   }, [])
 
+  const refreshCurrentDisplayId = useCallback((): void => {
+    void window.api?.floatingWorkspace?.getCurrentDisplayId?.().then((id) => {
+      if (typeof id === 'number' || id === null) {
+        setCurrentDisplayId(id)
+      }
+    })
+  }, [])
+
   const dock = useCallback((): void => {
     if (popupRef.current && !popupRef.current.closed) {
       popupRef.current.close()
@@ -36,72 +45,84 @@ export function useFloatingWorkspacePopout() {
     setPopupWindow(null)
     setPortalContainer(null)
     setIsDetached(false)
+    setCurrentDisplayId(null)
   }, [])
 
-  const detach = useCallback((targetDisplayId?: number): void => {
-    if (popupRef.current && !popupRef.current.closed) {
-      popupRef.current.focus()
-      if (typeof targetDisplayId === 'number') {
-        void window.api?.floatingWorkspace?.moveToDisplay?.(targetDisplayId)
-      }
-      return
-    }
-
-    if (typeof window === 'undefined' || typeof window.open !== 'function') {
-      return
-    }
-
-    const popup = window.open(
-      'about:blank#floating-workspace',
-      'orca-floating-workspace',
-      'width=960,height=640'
-    )
-
-    if (!popup) {
-      console.warn('[floating-workspace] Failed to open popout window')
-      return
-    }
-
-    popupRef.current = popup
-
-    try {
-      popup.document.title = 'Orca - Floating Workspace'
-
-      // Copy stylesheet and style tags
-      for (const sheet of Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))) {
-        popup.document.head.appendChild(sheet.cloneNode(true))
+  const detach = useCallback(
+    (targetDisplayId?: number): void => {
+      if (popupRef.current && !popupRef.current.closed) {
+        popupRef.current.focus()
+        if (typeof targetDisplayId === 'number') {
+          void window.api?.floatingWorkspace?.moveToDisplay?.(targetDisplayId).then(() => {
+            setCurrentDisplayId(targetDisplayId)
+          })
+        }
+        return
       }
 
-      popup.document.documentElement.className = document.documentElement.className
-      popup.document.documentElement.style.cssText = document.documentElement.style.cssText
-      popup.document.body.className =
-        'm-0 p-0 overflow-hidden bg-background text-foreground h-screen w-screen'
-
-      let container = popup.document.getElementById('floating-workspace-portal-root')
-      if (!container) {
-        container = popup.document.createElement('div')
-        container.id = 'floating-workspace-portal-root'
-        container.className = 'h-full w-full'
-        popup.document.body.appendChild(container)
+      if (typeof window === 'undefined' || typeof window.open !== 'function') {
+        return
       }
 
-      setPortalContainer(container)
-      setIsDetached(true)
-      setPopupWindow(popup)
+      const popup = window.open(
+        'about:blank#floating-workspace',
+        'orca-floating-workspace',
+        'width=960,height=640'
+      )
 
-      if (typeof targetDisplayId === 'number') {
-        setTimeout(() => {
-          void window.api?.floatingWorkspace?.moveToDisplay?.(targetDisplayId)
-        }, 50)
+      if (!popup) {
+        console.warn('[floating-workspace] Failed to open popout window')
+        return
       }
-    } catch (err) {
-      console.warn('[floating-workspace] Error setting up popout document:', err)
-      setIsDetached(false)
-      setPortalContainer(null)
-      setPopupWindow(null)
-      popupRef.current = null
-    }
-  }, [])
+
+      popupRef.current = popup
+
+      try {
+        popup.document.title = 'Orca - Floating Workspace'
+
+        // Copy stylesheet and style tags
+        for (const sheet of Array.from(
+          document.querySelectorAll('link[rel="stylesheet"], style')
+        )) {
+          popup.document.head.appendChild(sheet.cloneNode(true))
+        }
+
+        popup.document.documentElement.className = document.documentElement.className
+        popup.document.documentElement.style.cssText = document.documentElement.style.cssText
+        popup.document.body.className =
+          'm-0 p-0 overflow-hidden bg-background text-foreground h-screen w-screen'
+
+        let container = popup.document.getElementById('floating-workspace-portal-root')
+        if (!container) {
+          container = popup.document.createElement('div')
+          container.id = 'floating-workspace-portal-root'
+          container.className = 'h-full w-full'
+          popup.document.body.appendChild(container)
+        }
+
+        setPortalContainer(container)
+        setIsDetached(true)
+        setPopupWindow(popup)
+
+        if (typeof targetDisplayId === 'number') {
+          setCurrentDisplayId(targetDisplayId)
+          setTimeout(() => {
+            void window.api?.floatingWorkspace?.moveToDisplay?.(targetDisplayId)
+          }, 50)
+        } else {
+          setTimeout(refreshCurrentDisplayId, 50)
+        }
+      } catch (err) {
+        console.warn('[floating-workspace] Error setting up popout document:', err)
+        setIsDetached(false)
+        setPortalContainer(null)
+        setPopupWindow(null)
+        popupRef.current = null
+        setCurrentDisplayId(null)
+      }
+    },
+    [refreshCurrentDisplayId]
+  )
 
   useEffect(() => {
     if (!popupWindow) {
@@ -113,6 +134,7 @@ export function useFloatingWorkspacePopout() {
       setPortalContainer(null)
       setPopupWindow(null)
       popupRef.current = null
+      setCurrentDisplayId(null)
     }
     popupWindow.addEventListener('beforeunload', handleUnload)
 
@@ -146,8 +168,10 @@ export function useFloatingWorkspacePopout() {
       detach(nextDisplay?.id)
       return
     }
-    void window.api?.floatingWorkspace?.moveToNextDisplay?.()
-  }, [detach, displays, isDetached])
+    void window.api?.floatingWorkspace?.moveToNextDisplay?.().then(() => {
+      refreshCurrentDisplayId()
+    })
+  }, [detach, displays, isDetached, refreshCurrentDisplayId])
 
   const moveToDisplay = useCallback(
     (displayId: number): void => {
@@ -155,10 +179,16 @@ export function useFloatingWorkspacePopout() {
         detach(displayId)
         return
       }
-      void window.api?.floatingWorkspace?.moveToDisplay?.(displayId)
+      void window.api?.floatingWorkspace?.moveToDisplay?.(displayId).then(() => {
+        setCurrentDisplayId(displayId)
+      })
     },
     [detach, isDetached]
   )
+
+  const identifyDisplays = useCallback((): void => {
+    void window.api?.floatingWorkspace?.identifyDisplays?.()
+  }, [])
 
   const minimize = useCallback((): void => {
     void window.api?.floatingWorkspace?.minimize?.()
@@ -175,11 +205,14 @@ export function useFloatingWorkspacePopout() {
   return {
     isDetached,
     displays,
+    currentDisplayId,
     portalContainer,
     detach,
     dock,
     moveToNextDisplay,
     moveToDisplay,
+    identifyDisplays,
+    refreshCurrentDisplayId,
     minimize,
     restore,
     focus

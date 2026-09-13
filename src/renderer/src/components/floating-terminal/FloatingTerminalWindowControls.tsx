@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react'
-import { ExternalLink, Maximize2, Minimize2, Minus, Monitor } from 'lucide-react'
+import { ExternalLink, Maximize2, Minimize2, Minus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { FloatingTerminalDisplaysMenu } from './FloatingTerminalDisplaysMenu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
@@ -29,7 +30,11 @@ export type FloatingTerminalWindowControlsProps = {
   isDetached?: boolean
   onToggleDetached?: () => void
   displays?: readonly WorkspaceDisplayInfo[]
+  currentDisplayId?: number | null
   onMoveToNextDisplay?: () => void
+  onMoveToDisplay?: (displayId: number) => void
+  onIdentifyDisplays?: () => void
+  onRefreshDisplays?: () => void
 }
 
 const controlButtonClassName =
@@ -52,7 +57,11 @@ export function FloatingTerminalWindowControls({
   isDetached = false,
   onToggleDetached,
   displays = EMPTY_DISPLAYS,
-  onMoveToNextDisplay
+  currentDisplayId,
+  onMoveToNextDisplay,
+  onMoveToDisplay,
+  onIdentifyDisplays,
+  onRefreshDisplays
 }: FloatingTerminalWindowControlsProps): React.JSX.Element {
   const defaultTuiAgent = useAppStore((s) => s.settings?.defaultTuiAgent ?? null)
   const createTab = useAppStore((s) => s.createTab)
@@ -167,43 +176,17 @@ export function FloatingTerminalWindowControls({
           </TooltipContent>
         </Tooltip>
       ) : null}
-      {displays.length >= 2 && onMoveToNextDisplay ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-xs"
-              className={controlButtonClassName}
-              aria-label={
-                isDetached
-                  ? translate(
-                      'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToNextDisplay',
-                      'Move floating workspace to next monitor'
-                    )
-                  : translate(
-                      'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToSecondDisplay',
-                      'Send floating workspace to Monitor 2'
-                    )
-              }
-              onClick={onMoveToNextDisplay}
-            >
-              <Monitor className="size-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={6}>
-            {isDetached
-              ? translate(
-                  'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToNextDisplay',
-                  'Move to next monitor'
-                )
-              : translate(
-                  'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToSecondDisplay',
-                  'Send to Monitor 2'
-                )}
-          </TooltipContent>
-        </Tooltip>
-      ) : null}
+      <FloatingTerminalDisplaysMenu
+        displays={displays}
+        currentDisplayId={currentDisplayId}
+        isDetached={isDetached}
+        controlButtonClassName={controlButtonClassName}
+        onMoveToDisplay={onMoveToDisplay}
+        onMoveToNextDisplay={onMoveToNextDisplay}
+        onIdentifyDisplays={onIdentifyDisplays}
+        onRefreshDisplays={onRefreshDisplays}
+        onToggleDetached={onToggleDetached}
+      />
       {onToggleDetached ? (
         <Tooltip>
           <TooltipTrigger asChild>

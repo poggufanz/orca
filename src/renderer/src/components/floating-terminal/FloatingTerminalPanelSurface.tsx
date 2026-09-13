@@ -95,11 +95,17 @@ export function renderFloatingTerminalPanelSurface({
   handleFloatingSaveDialogSave,
   isDetached,
   displays,
+  currentDisplayId,
   dock,
   detach,
   moveToNextDisplay,
+  moveToDisplay,
+  identifyDisplays,
+  refreshCurrentDisplayId,
   minimize
 }: ReturnType<typeof useFloatingTerminalPanelController>): React.JSX.Element {
+  const isSurfaceActive = isDetached || open
+
   return (
     // Why: sit above the z-40 notification cards so the floating workspace is
     // never buried behind them, but stay under the z-50 modal layer so its own
@@ -110,7 +116,7 @@ export function renderFloatingTerminalPanelSurface({
     <div
       ref={setPanelNode}
       data-floating-terminal-panel
-      aria-hidden={!open}
+      aria-hidden={!isSurfaceActive}
       tabIndex={-1}
       className={
         isDetached
@@ -169,7 +175,7 @@ export function renderFloatingTerminalPanelSurface({
           onPointerCancel={isDetached ? undefined : handleDragEnd}
           onDoubleClick={isDetached ? undefined : handleTitlebarDoubleClick}
         >
-          <FloatingWorkspaceTabDragContext enabled={open}>
+          <FloatingWorkspaceTabDragContext enabled={isSurfaceActive}>
             <TabBar
               tabs={terminalItems}
               activeTabId={activeTerminalId}
@@ -232,7 +238,11 @@ export function renderFloatingTerminalPanelSurface({
             isDetached={isDetached}
             onToggleDetached={isDetached ? dock : detach}
             displays={displays}
+            currentDisplayId={currentDisplayId}
             onMoveToNextDisplay={moveToNextDisplay}
+            onMoveToDisplay={moveToDisplay}
+            onIdentifyDisplays={identifyDisplays}
+            onRefreshDisplays={refreshCurrentDisplayId}
           />
         </div>
 
@@ -264,12 +274,12 @@ export function renderFloatingTerminalPanelSurface({
                         cwd={cwd}
                         isActive={isActive}
                         // Why: the closed panel is only CSS-hidden, so gate
-                        // visibility on `open` too. This routes the floating
+                        // visibility on `isSurfaceActive` too. This routes the floating
                         // terminal through the standard hidden-terminal
                         // suspend/resume path: no live WebGL context (or glyph
                         // atlas to corrupt) while hidden, and the resume on
                         // reopen rebuilds the renderer from scratch.
-                        isVisible={isActive && open}
+                        isVisible={isActive && isSurfaceActive}
                         onPtyExit={(ptyId, exitCode) => {
                           if (exitCode !== undefined && !isProvenProcessExit(exitCode)) {
                             useAppStore.getState().markUnverifiedPtyLoss(tab.id)
@@ -297,7 +307,7 @@ export function renderFloatingTerminalPanelSurface({
                 className={isActive ? 'absolute inset-0 flex' : 'absolute inset-0 hidden'}
                 aria-hidden={!isActive}
               >
-                <FloatingBrowserSlot browserTab={tab} isActive={open && isActive} />
+                <FloatingBrowserSlot browserTab={tab} isActive={isSurfaceActive && isActive} />
               </div>
             )
           })}
@@ -309,7 +319,11 @@ export function renderFloatingTerminalPanelSurface({
                 className={isActive ? 'absolute inset-0 flex' : 'absolute inset-0 hidden'}
                 aria-hidden={!isActive}
               >
-                <EmulatorPane tab={tab} worktreeId={tab.worktreeId} isActive={open && isActive} />
+                <EmulatorPane
+                  tab={tab}
+                  worktreeId={tab.worktreeId}
+                  isActive={isSurfaceActive && isActive}
+                />
               </div>
             )
           })}
@@ -330,7 +344,7 @@ export function renderFloatingTerminalPanelSurface({
                 <EditorPanel
                   activeFileId={activeEditorFile.id}
                   activeViewStateId={activeEditorUnifiedId}
-                  isVisible={open}
+                  isVisible={isSurfaceActive}
                   markdownAnnotationsEnabled={false}
                 />
               </Suspense>

@@ -10,6 +10,7 @@ export function installPrivilegedWindowNavigationPolicy(contents: WebContents): 
         action: 'allow',
         overrideBrowserWindowOptions: {
           title: 'Orca Floating Workspace',
+          parent: null as unknown as Electron.BrowserWindow,
           width: 960,
           height: 640,
           minWidth: 420,
