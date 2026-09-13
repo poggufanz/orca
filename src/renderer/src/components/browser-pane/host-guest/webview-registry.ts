@@ -116,6 +116,8 @@ function applyWebviewsDragPassthrough(passthrough: boolean): void {
     if (previous !== undefined) {
       webview.style.pointerEvents = previous
       dragPassthroughPreviousPointerEvents.delete(webview)
+    } else if (webview.style.pointerEvents === 'none') {
+      webview.style.pointerEvents = ''
     }
   }
 }
@@ -211,18 +213,17 @@ export function isBrowserPageRendererRecoveryPending(browserTabId: string): bool
 }
 
 function moveFocusToRendererIfWebviewOwnsFocus(webview: Electron.WebviewTag): boolean {
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
-    return false
-  }
-  const activeElement = document.activeElement as HTMLElement | null
-  if (!activeElement) {
+  const ownerDoc = webview.ownerDocument ?? (typeof document !== 'undefined' ? document : null)
+  const ownerWindow = ownerDoc?.defaultView ?? (typeof window !== 'undefined' ? window : null)
+  const activeElement = ownerDoc?.activeElement as HTMLElement | null
+  if (!activeElement || !ownerWindow) {
     return false
   }
   // Why: hiding/removing a focused webview can let macOS reactivate the
   // previously-frontmost app. Give focus back to Orca's renderer first.
   if (webview === activeElement || webview.contains(activeElement)) {
     activeElement.blur?.()
-    window.focus()
+    ownerWindow.focus()
     return true
   }
   return false

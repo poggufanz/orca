@@ -96,13 +96,7 @@ function hasExceededDistance(delta: PointerCoordinates, measurement: DistanceMea
   if ('x' in measurement && 'y' in measurement) {
     return dx > measurement.x && dy > measurement.y
   }
-  if ('x' in measurement) {
-    return dx > measurement.x
-  }
-  if ('y' in measurement) {
-    return dy > measurement.y
-  }
-  return false
+  return 'x' in measurement ? dx > measurement.x : 'y' in measurement && dy > measurement.y
 }
 
 export function shouldActivateTabDragFromDistanceSample({
@@ -175,7 +169,14 @@ export class TabDragPointerSensor implements SensorInstance {
     this.windowListeners.add(win, 'visibilitychange', this.handleCancel)
     this.windowListeners.add(win, 'contextmenu', preventDefault)
     this.windowListeners.add(win, 'focus', this.handleCancel)
+    this.windowListeners.add(win, 'blur', this.handleCancel)
+    this.documentListeners.add(this.document, 'visibilitychange', this.handleCancel)
     this.documentListeners.add(this.document, 'keydown', this.handleKeydown)
+    if (win && typeof window !== 'undefined' && win !== window) {
+      this.windowListeners.add(window, 'pointerup', this.handleEnd)
+      this.windowListeners.add(window, 'pointercancel', this.handleCancel)
+      this.windowListeners.add(window, 'blur', this.handleCancel)
+    }
 
     if (!activationConstraint) {
       this.handleStart()
@@ -202,9 +203,14 @@ export class TabDragPointerSensor implements SensorInstance {
   private detach(): void {
     this.pointerListeners.removeAll()
     this.windowListeners.removeAll()
-    window.setTimeout(this.documentListeners.removeAll, 50)
+    const timerView = this.document.defaultView ?? (typeof window !== 'undefined' ? window : null)
+    if (this.activated) {
+      timerView?.setTimeout(this.documentListeners.removeAll, 50)
+    } else {
+      this.documentListeners.removeAll()
+    }
     if (this.timeoutId !== null) {
-      window.clearTimeout(this.timeoutId)
+      timerView?.clearTimeout(this.timeoutId)
       this.timeoutId = null
     }
   }
@@ -228,6 +234,10 @@ export class TabDragPointerSensor implements SensorInstance {
   }
 
   private handleMove(event: PointerEvent): void {
+    if (event.buttons === 0 || (event.buttons & 1) === 0) {
+      this.handleCancel()
+      return
+    }
     const coordinates = getPointerCoordinates(event)
     const { activationConstraint } = this.props.options
     if (!coordinates) {

@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { PopoutPortalContainerContext } from '@/components/ui/portal-container-context'
+import { useRadixBodyPointerEventsRecovery } from '@/hooks/useRadixBodyPointerEventsRecovery'
 import { renderFloatingTerminalPanelSurface } from './FloatingTerminalPanelSurface'
 import type { FloatingTerminalPanelProps } from './floating-terminal-panel-types'
 import { useFloatingTerminalPanelController } from './use-floating-terminal-panel-controller'
@@ -9,6 +10,7 @@ export { clearReportedFloatingFocusCache } from './floating-terminal-focus-repor
 
 export function FloatingTerminalPanel(props: FloatingTerminalPanelProps): React.JSX.Element | null {
   const surface = useFloatingTerminalPanelController(props)
+  useRadixBodyPointerEventsRecovery(surface.portalContainer?.ownerDocument)
   if (surface.isDetached) {
     if (!surface.portalContainer) {
       return null
