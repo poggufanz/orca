@@ -4,6 +4,7 @@ import * as React from 'react'
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 import { Select as SelectPrimitive } from 'radix-ui'
 
+import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
 import { cn } from '@/lib/utils'
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
@@ -64,8 +65,12 @@ function SelectContent({
 }: React.ComponentProps<typeof SelectPrimitive.Content> & {
   portalContainer?: HTMLElement | null
 }) {
+  const contextContainer = usePopoutPortalContainer()
+  const resolvedContainer =
+    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+
   return (
-    <SelectPrimitive.Portal container={portalContainer ?? undefined}>
+    <SelectPrimitive.Portal container={resolvedContainer}>
       <SelectPrimitive.Content
         data-slot="select-content"
         // Why: matches the dropdown-menu recipe — translucent surface, solid

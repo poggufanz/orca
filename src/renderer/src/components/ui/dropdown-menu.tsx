@@ -10,9 +10,20 @@ function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrim
 }
 
 function DropdownMenuPortal({
+  container,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
-  return <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+  const contextContainer = usePopoutPortalContainer()
+  const resolvedContainer =
+    container ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+
+  return (
+    <DropdownMenuPrimitive.Portal
+      data-slot="dropdown-menu-portal"
+      container={resolvedContainer}
+      {...props}
+    />
+  )
 }
 
 function DropdownMenuTrigger({
@@ -212,10 +223,17 @@ function DropdownMenuSubTrigger({
 function DropdownMenuSubContent({
   className,
   style,
+  portalContainer,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent> & {
+  portalContainer?: HTMLElement | null
+}) {
+  const contextContainer = usePopoutPortalContainer()
+  const resolvedContainer =
+    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={resolvedContainer}>
       <DropdownMenuPrimitive.SubContent
         data-slot="dropdown-menu-sub-content"
         className={cn(
