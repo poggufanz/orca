@@ -37,17 +37,8 @@ describe('browser-address-bar-initial-click', () => {
 
   it('leaves the flag down when the click starts in the input itself', () => {
     const ref = { current: false }
-    const input = {
-      ownerDocument: { activeElement: null },
-      selectionStart: 0,
-      selectionEnd: 0,
-      select: vi.fn()
-    }
+    const { input, event } = stubInput()
     input.ownerDocument.activeElement = input
-    const event = {
-      button: 0,
-      currentTarget: input
-    } as unknown as ReactMouseEvent<HTMLInputElement>
 
     trackAddressBarInitialMouseDown(ref, event)
 
