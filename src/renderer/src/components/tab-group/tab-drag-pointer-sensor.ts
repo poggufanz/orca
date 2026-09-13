@@ -134,6 +134,7 @@ export class TabDragPointerSensor implements SensorInstance {
   autoScrollEnabled = true
 
   private activated = false
+  private ended = false
   private readonly document: Document
   private readonly initialCoordinates: PointerCoordinates
   private readonly pointerDownTime = performance.now()
@@ -168,8 +169,8 @@ export class TabDragPointerSensor implements SensorInstance {
     this.windowListeners.add(win, 'dragstart', preventDefault)
     this.windowListeners.add(win, 'visibilitychange', this.handleCancel)
     this.windowListeners.add(win, 'contextmenu', preventDefault)
-    this.windowListeners.add(win, 'focus', this.handleCancel)
     this.windowListeners.add(win, 'blur', this.handleCancel)
+    this.windowListeners.add(win, 'focus', this.handleCancel)
     this.documentListeners.add(this.document, 'visibilitychange', this.handleCancel)
     this.documentListeners.add(this.document, 'keydown', this.handleKeydown)
     if (win && typeof window !== 'undefined' && win !== window) {
@@ -201,6 +202,7 @@ export class TabDragPointerSensor implements SensorInstance {
   }
 
   private detach(): void {
+    this.ended = true
     this.pointerListeners.removeAll()
     this.windowListeners.removeAll()
     const timerView = this.document.defaultView ?? (typeof window !== 'undefined' ? window : null)
@@ -223,7 +225,7 @@ export class TabDragPointerSensor implements SensorInstance {
   }
 
   private handleStart(): void {
-    if (this.activated) {
+    if (this.activated || this.ended) {
       return
     }
     this.activated = true
@@ -234,6 +236,11 @@ export class TabDragPointerSensor implements SensorInstance {
   }
 
   private handleMove(event: PointerEvent): void {
+    if (this.ended) {
+      return
+    }
+    // Why: a move with no button held means the pointer was released outside
+    // the window (capture lost) — cancel so a ghost drag can't follow re-entry.
     if (event.buttons === 0 || (event.buttons & 1) === 0) {
       this.handleCancel()
       return
@@ -287,6 +294,9 @@ export class TabDragPointerSensor implements SensorInstance {
   }
 
   private handleEnd(): void {
+    if (this.ended) {
+      return
+    }
     this.detach()
     if (!this.activated) {
       this.props.onAbort(this.props.active)
@@ -295,6 +305,9 @@ export class TabDragPointerSensor implements SensorInstance {
   }
 
   private handleCancel(): void {
+    if (this.ended) {
+      return
+    }
     this.detach()
     if (!this.activated) {
       this.props.onAbort(this.props.active)

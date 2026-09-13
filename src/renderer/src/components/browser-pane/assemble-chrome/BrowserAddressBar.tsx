@@ -9,6 +9,10 @@ import type { BrowserPageDocLocation } from '../../../../../shared/browser-works
 import { buildBrowserAddressBarSuggestions } from './browser-address-bar-suggestions'
 import { shouldOverlayBrowserAddressBar } from './browser-address-bar-expansion'
 import { saveBrowserAddressBarEditSession } from './browser-address-bar-edit-session'
+import {
+  selectAddressBarCollapsedInitialClick,
+  trackAddressBarInitialMouseDown
+} from './browser-address-bar-initial-click'
 import { useBrowserAddressBarDismissal } from './use-browser-address-bar-dismissal'
 import type { BrowserAddressBarEditSessionBinding } from './use-browser-address-bar-edit-session'
 import BrowserAddressBarSuggestionList from './BrowserAddressBarSuggestionList'
@@ -53,6 +57,7 @@ export default function BrowserAddressBar({
   const browserDefaultSearchEngine = useAppStore((s) => s.browserDefaultSearchEngine)
   const browserKagiSessionLink = useAppStore((s) => s.browserKagiSessionLink)
   const closingRef = useRef(false)
+  const initialMouseDownRef = useRef(false)
   const openedAtRef = useRef(0)
   const blurCloseTimerRef = useRef<number | null>(null)
   const closingResetTimerRef = useRef<number | null>(null)
@@ -242,12 +247,15 @@ export default function BrowserAddressBar({
       window.clearTimeout(blurCloseTimerRef.current)
       blurCloseTimerRef.current = null
     }
-    inputRef.current?.select()
+    if (!initialMouseDownRef.current) {
+      inputRef.current?.select()
+    }
     openedAtRef.current = Date.now()
     setOpen(true)
   }, [inputRef])
 
   const handleBlur = useCallback(() => {
+    initialMouseDownRef.current = false
     // Why: delay close so that clicking a suggestion item registers before
     // the popover unmounts. Without this, onSelect never fires because the
     // mousedown on PopoverContent triggers input blur first.
@@ -427,6 +435,8 @@ export default function BrowserAddressBar({
               ref={inputRef}
               value={value}
               onFocus={handleFocus}
+              onMouseDown={(event) => trackAddressBarInitialMouseDown(initialMouseDownRef, event)}
+              onClick={(event) => selectAddressBarCollapsedInitialClick(initialMouseDownRef, event)}
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               data-orca-browser-address-bar="true"
