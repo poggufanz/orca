@@ -4,7 +4,24 @@ import { isRendererDocumentNavigation } from './renderer-document-navigation'
 
 /** Keep remote documents from inheriting an Orca window's privileged preload. */
 export function installPrivilegedWindowNavigationPolicy(contents: WebContents): void {
-  contents.setWindowOpenHandler(({ url }) => {
+  contents.setWindowOpenHandler(({ url, frameName }) => {
+    if (frameName === 'orca-floating-workspace' || url === 'about:blank#floating-workspace') {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          title: 'Orca Floating Workspace',
+          width: 960,
+          height: 640,
+          minWidth: 420,
+          minHeight: 280,
+          autoHideMenuBar: true,
+          show: true,
+          webPreferences: {
+            webviewTag: true
+          }
+        }
+      }
+    }
     const externalUrl = normalizeExternalBrowserUrl(url)
     if (externalUrl) {
       void shell.openExternal(externalUrl)

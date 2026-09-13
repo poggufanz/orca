@@ -97,6 +97,12 @@ vi.mock('@/components/ui/tooltip', () => ({
 }))
 
 vi.mock('lucide-react', () => ({
+  ExternalLink: function ExternalLink() {
+    return null
+  },
+  Monitor: function Monitor() {
+    return null
+  },
   Maximize2: function Maximize2() {
     return null
   },
@@ -238,5 +244,65 @@ describe('FloatingTerminalWindowControls default-agent launch', () => {
       EXISTING_TAB_ID,
       NEW_AGENT_TAB_ID
     ])
+  })
+
+  it('renders multi-monitor button and moves to next display when 2 monitors exist', () => {
+    const onMoveToNextDisplay = vi.fn()
+    const onToggleDetached = vi.fn()
+    const displays = [
+      {
+        id: 1,
+        label: 'Display 1',
+        bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+        workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+        isPrimary: true,
+        scaleFactor: 1
+      },
+      {
+        id: 2,
+        label: 'Display 2',
+        bounds: { x: 1920, y: 0, width: 1920, height: 1080 },
+        workArea: { x: 1920, y: 0, width: 1920, height: 1040 },
+        isPrimary: false,
+        scaleFactor: 1
+      }
+    ]
+
+    const element = FloatingTerminalWindowControls({
+      maximized: false,
+      onToggleMaximized: vi.fn(),
+      onMinimize: vi.fn(),
+      isDetached: false,
+      onToggleDetached,
+      displays,
+      onMoveToNextDisplay
+    })
+
+    const moveButton = findOnClickByAriaLabel(element, 'Send floating workspace to Monitor 2')
+    moveButton()
+    expect(onMoveToNextDisplay).toHaveBeenCalledOnce()
+
+    const detachButton = findOnClickByAriaLabel(
+      element,
+      'Detach floating workspace to separate window'
+    )
+    detachButton()
+    expect(onToggleDetached).toHaveBeenCalledOnce()
+  })
+
+  it('renders dock button when detached', () => {
+    const onToggleDetached = vi.fn()
+
+    const element = FloatingTerminalWindowControls({
+      maximized: false,
+      onToggleMaximized: vi.fn(),
+      onMinimize: vi.fn(),
+      isDetached: true,
+      onToggleDetached
+    })
+
+    const dockButton = findOnClickByAriaLabel(element, 'Dock floating workspace into main window')
+    dockButton()
+    expect(onToggleDetached).toHaveBeenCalledOnce()
   })
 })

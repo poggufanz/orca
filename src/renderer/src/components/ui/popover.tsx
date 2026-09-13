@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
 
+import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
 import { cn } from '@/lib/utils'
 
 // React delegates wheel passively, so native defaultPrevented may not reflect synthetic cancellation.
@@ -123,6 +124,10 @@ function PopoverContent({
 }: React.ComponentProps<typeof PopoverPrimitive.Content> & {
   portalContainer?: HTMLElement | null
 }) {
+  const contextContainer = usePopoutPortalContainer()
+  const resolvedContainer =
+    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+
   const handleConsumerWheel = React.useCallback(
     (event: React.WheelEvent<HTMLDivElement>): void => {
       onWheel?.(event)
@@ -145,7 +150,7 @@ function PopoverContent({
   const setContentRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       if (node) {
-        return attachPopoverContent(node, portalContainer, forwardedRef)
+        return attachPopoverContent(node, resolvedContainer, forwardedRef)
       }
       if (typeof forwardedRef === 'function') {
         forwardedRef(null)
@@ -154,11 +159,11 @@ function PopoverContent({
       }
       return undefined
     },
-    [forwardedRef, portalContainer]
+    [forwardedRef, resolvedContainer]
   )
 
   return (
-    <PopoverPrimitive.Portal container={portalContainer ?? undefined}>
+    <PopoverPrimitive.Portal container={resolvedContainer}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

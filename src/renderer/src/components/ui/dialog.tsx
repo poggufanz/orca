@@ -4,6 +4,7 @@ import * as React from 'react'
 import { XIcon } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 
+import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -16,8 +17,16 @@ function DialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
-function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+function DialogPortal({
+  container,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  const contextContainer = usePopoutPortalContainer()
+  const resolvedContainer =
+    container ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  return (
+    <DialogPrimitive.Portal data-slot="dialog-portal" container={resolvedContainer} {...props} />
+  )
 }
 
 function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.Close>) {

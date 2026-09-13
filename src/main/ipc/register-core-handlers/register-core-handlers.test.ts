@@ -55,6 +55,7 @@ const {
   registerCodexConfigSyncHandlersMock,
   registerOnboardingHandlersMock,
   registerDashboardPopoutHandlersMock,
+  registerFloatingWorkspaceMonitorHandlersMock,
   isDashboardPopoutRendererMock,
   registerTerminalPreviewHandlersMock,
   registerSpeechHandlersMock,
@@ -121,6 +122,7 @@ const {
   registerCodexConfigSyncHandlersMock: vi.fn(),
   registerOnboardingHandlersMock: vi.fn(),
   registerDashboardPopoutHandlersMock: vi.fn(),
+  registerFloatingWorkspaceMonitorHandlersMock: vi.fn(),
   isDashboardPopoutRendererMock: vi.fn(),
   registerTerminalPreviewHandlersMock: vi.fn(),
   registerSpeechHandlersMock: vi.fn(),
@@ -158,6 +160,10 @@ vi.mock('../onboarding', () => ({
 
 vi.mock('../dashboard-popout', () => ({
   registerDashboardPopoutHandlers: registerDashboardPopoutHandlersMock
+}))
+
+vi.mock('../floating-workspace-monitor', () => ({
+  registerFloatingWorkspaceMonitorHandlers: registerFloatingWorkspaceMonitorHandlersMock
 }))
 
 vi.mock('../../window/dashboard-popout-window', () => ({
@@ -444,6 +450,7 @@ describe('registerCoreHandlers', () => {
     registerHostedReviewHandlersMock.mockReset()
     registerExportHandlersMock.mockReset()
     registerDashboardPopoutHandlersMock.mockReset()
+    registerFloatingWorkspaceMonitorHandlersMock.mockReset()
     registerTerminalPreviewHandlersMock.mockReset()
     registerSpeechHandlersMock.mockReset()
     registerSkillsHandlersMock.mockReset()
@@ -532,6 +539,7 @@ describe('registerCoreHandlers', () => {
     expect(registerDeveloperPermissionHandlersMock).toHaveBeenCalled()
     expect(registerComputerUsePermissionHandlersMock).toHaveBeenCalled()
     expect(registerDashboardPopoutHandlersMock).toHaveBeenCalledWith(store, undefined)
+    expect(registerFloatingWorkspaceMonitorHandlersMock).toHaveBeenCalled()
     expect(registerTerminalPreviewHandlersMock).toHaveBeenCalledWith(runtime)
     expect(registerSettingsHandlersMock).toHaveBeenCalledWith(store, agentAwakeService)
     expect(registerSkillsHandlersMock).toHaveBeenCalledWith(store, runtime)

@@ -160,7 +160,8 @@ export function registerTerminalPanePasteListeners({
   }
 
   const onAppMenuPaste = (event: Event): void => {
-    const activeElementAtDispatch = document.activeElement
+    const targetDoc = container.ownerDocument ?? document
+    const activeElementAtDispatch = targetDoc.activeElement
     if (
       !(activeElementAtDispatch instanceof Element) ||
       !container.contains(activeElementAtDispatch) ||
@@ -199,7 +200,8 @@ export function registerTerminalPanePasteListeners({
   }
 
   const onAppMenuSelectionAction = (event: Event): void => {
-    const activeElement = document.activeElement
+    const targetDoc = container.ownerDocument ?? document
+    const activeElement = targetDoc.activeElement
     if (
       !(activeElement instanceof Element) ||
       !container.contains(activeElement) ||

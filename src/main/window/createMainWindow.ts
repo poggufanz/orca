@@ -11,6 +11,10 @@ import { clearTrustedUIRendererWebContentsId, setTrustedUIRendererWebContentsId 
 import type { Store } from '../persistence'
 import { closeDashboardPopout } from './dashboard-popout-window'
 import {
+  closeFloatingWorkspacePopout,
+  setFloatingWorkspacePopoutWindow
+} from './floating-workspace-display-manager'
+import {
   installMainWindowCloseLifecycle,
   WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS
 } from './main-window-close-lifecycle'
@@ -202,8 +206,19 @@ export function createMainWindow(
     store
   })
 
+  mainWindow.webContents.on('did-create-window', (childWindow, details) => {
+    if (details.frameName === 'orca-floating-workspace') {
+      setFloatingWorkspacePopoutWindow(childWindow)
+      installMainWindowWebviewSecurity(childWindow)
+      childWindow.on('closed', () => {
+        setFloatingWorkspacePopoutWindow(null)
+      })
+    }
+  })
+
   mainWindow.on('closed', () => {
     closeDashboardPopout()
+    closeFloatingWorkspacePopout()
     state.clearInitialRevealFallbackTimer()
     closeLifecycle.dispose()
     focus.dispose()

@@ -92,7 +92,12 @@ export function renderFloatingTerminalPanelSurface({
   saveDialogFile,
   handleFloatingSaveDialogCancel,
   handleFloatingSaveDialogDiscard,
-  handleFloatingSaveDialogSave
+  handleFloatingSaveDialogSave,
+  isDetached,
+  displays,
+  dock,
+  detach,
+  moveToNextDisplay
 }: ReturnType<typeof useFloatingTerminalPanelController>): React.JSX.Element {
   return (
     // Why: sit above the z-40 notification cards so the floating workspace is
@@ -106,16 +111,28 @@ export function renderFloatingTerminalPanelSurface({
       data-floating-terminal-panel
       aria-hidden={!open}
       tabIndex={-1}
-      className={`fixed z-[45] flex min-h-[280px] min-w-[420px] rounded-lg bg-transparent text-card-foreground shadow-[0_4px_12px_rgba(0,0,0,0.16),0_24px_64px_rgba(0,0,0,0.32)] outline-none dark:shadow-[0_8px_20px_rgba(0,0,0,0.35),0_28px_72px_rgba(0,0,0,0.58)] ${open ? 'opacity-100' : 'invisible pointer-events-none opacity-0'}`}
-      style={{
-        visibility: open ? 'visible' : 'hidden',
-        left: bounds.left,
-        top: bounds.top,
-        width: bounds.width,
-        height: bounds.height
-      }}
+      className={
+        isDetached
+          ? 'relative flex h-full w-full min-h-0 min-w-0 bg-background text-card-foreground outline-none'
+          : `fixed z-[45] flex min-h-[280px] min-w-[420px] rounded-lg bg-transparent text-card-foreground shadow-[0_4px_12px_rgba(0,0,0,0.16),0_24px_64px_rgba(0,0,0,0.32)] outline-none dark:shadow-[0_8px_20px_rgba(0,0,0,0.35),0_28px_72px_rgba(0,0,0,0.58)] ${open ? 'opacity-100' : 'invisible pointer-events-none opacity-0'}`
+      }
+      style={
+        isDetached
+          ? {
+              visibility: 'visible',
+              width: '100vw',
+              height: '100vh'
+            }
+          : {
+              visibility: open ? 'visible' : 'hidden',
+              left: bounds.left,
+              top: bounds.top,
+              width: bounds.width,
+              height: bounds.height
+            }
+      }
       onMouseUp={(event) => {
-        if (maximized || !stagedBoundsRef.current) {
+        if (isDetached || maximized || !stagedBoundsRef.current) {
           return
         }
         const rect = event.currentTarget.getBoundingClientRect()
@@ -135,15 +152,21 @@ export function renderFloatingTerminalPanelSurface({
       }}
       onKeyDownCapture={handleShortcutSurfaceKeyDown}
     >
-      <div className="relative flex h-full w-full min-h-0 flex-col overflow-hidden rounded-lg border border-black/14 bg-card dark:border-white/14">
+      <div
+        className={`relative flex h-full w-full min-h-0 flex-col overflow-hidden ${
+          isDetached ? 'bg-card' : 'rounded-lg border border-black/14 bg-card dark:border-white/14'
+        }`}
+      >
         <div
-          className="flex h-9 shrink-0 cursor-grab items-center border-b border-border bg-[var(--bg-titlebar,var(--card))] active:cursor-grabbing"
+          className={`flex h-9 shrink-0 ${
+            isDetached ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+          } items-center border-b border-border bg-[var(--bg-titlebar,var(--card))]`}
           data-floating-terminal-shortcut-surface
-          onPointerDown={handleDragStart}
-          onPointerMove={handleDragMove}
-          onPointerUp={handleDragEnd}
-          onPointerCancel={handleDragEnd}
-          onDoubleClick={handleTitlebarDoubleClick}
+          onPointerDown={isDetached ? undefined : handleDragStart}
+          onPointerMove={isDetached ? undefined : handleDragMove}
+          onPointerUp={isDetached ? undefined : handleDragEnd}
+          onPointerCancel={isDetached ? undefined : handleDragEnd}
+          onDoubleClick={isDetached ? undefined : handleTitlebarDoubleClick}
         >
           <FloatingWorkspaceTabDragContext enabled={open}>
             <TabBar
@@ -198,7 +221,17 @@ export function renderFloatingTerminalPanelSurface({
           <FloatingTerminalWindowControls
             maximized={maximized}
             onToggleMaximized={toggleMaximized}
-            onMinimize={() => onOpenChange(false)}
+            onMinimize={() => {
+              if (isDetached) {
+                dock()
+              } else {
+                onOpenChange(false)
+              }
+            }}
+            isDetached={isDetached}
+            onToggleDetached={isDetached ? dock : detach}
+            displays={displays}
+            onMoveToNextDisplay={moveToNextDisplay}
           />
         </div>
 
@@ -325,7 +358,7 @@ export function renderFloatingTerminalPanelSurface({
         onDismiss: dismissOrchestrationSetup,
         onEnable: () => setOrchestrationDialogOpen(true)
       })}
-      {!maximized && (
+      {!isDetached && !maximized && (
         <FloatingTerminalResizeHandles
           bounds={bounds}
           onPreviewBounds={previewUserBounds}

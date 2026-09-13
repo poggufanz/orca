@@ -108,7 +108,8 @@ export default function BrowserAddressBar({
     return () => {
       // Why only a focused bar: an idle one has no edit to hand on, and resuming it would seize
       // focus and reopen a dropdown for a user who was reading the page.
-      if (document.activeElement !== input) {
+      const doc = input.ownerDocument ?? document
+      if (doc.activeElement !== input) {
         return
       }
       const typedQuery = prePreviewValueRef.current
@@ -263,7 +264,8 @@ export default function BrowserAddressBar({
     }
     blurCloseTimerRef.current = window.setTimeout(() => {
       blurCloseTimerRef.current = null
-      if (grace && inputRef.current && document.activeElement === inputRef.current) {
+      const doc = inputRef.current?.ownerDocument ?? document
+      if (grace && inputRef.current && doc.activeElement === inputRef.current) {
         return
       }
       restoreTypedQuery()

@@ -69,7 +69,8 @@ export function useBrowserPageChromeFocus({
       } else {
         input.select()
       }
-      return document.activeElement === input
+      const targetDoc = input.ownerDocument ?? document
+      return targetDoc.activeElement === input
     },
     [addressBarInputRef, guestFocus]
   )
@@ -116,7 +117,8 @@ export function useBrowserPageChromeFocus({
         // Why later frames skip a bar that is already ours: the retries exist to fight the guest
         // taking focus back, and re-running the whole take on a bar nobody stole drags the caret
         // off whatever the user has typed since — for the ~100ms the frames span.
-        if (attempts === 0 || document.activeElement !== addressBarInputRef.current) {
+        const currentDoc = addressBarInputRef.current?.ownerDocument ?? document
+        if (attempts === 0 || currentDoc.activeElement !== addressBarInputRef.current) {
           focusAddressBarNow(selection)
         }
         attempts += 1

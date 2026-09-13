@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react'
-import { Maximize2, Minimize2, Minus } from 'lucide-react'
+import { ExternalLink, Maximize2, Minimize2, Minus, Monitor } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
@@ -21,10 +22,14 @@ import {
 import { translate } from '@/i18n/i18n'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
 
-type FloatingTerminalWindowControlsProps = {
+export type FloatingTerminalWindowControlsProps = {
   maximized: boolean
   onToggleMaximized: () => void
   onMinimize: () => void
+  isDetached?: boolean
+  onToggleDetached?: () => void
+  displays?: readonly WorkspaceDisplayInfo[]
+  onMoveToNextDisplay?: () => void
 }
 
 const controlButtonClassName =
@@ -38,10 +43,16 @@ function withShortcutHint(label: string, shortcutLabel: string | null): string {
   return shortcutLabel ? `${label} (${shortcutLabel})` : label
 }
 
+const EMPTY_DISPLAYS: readonly WorkspaceDisplayInfo[] = []
+
 export function FloatingTerminalWindowControls({
   maximized,
   onToggleMaximized,
-  onMinimize
+  onMinimize,
+  isDetached = false,
+  onToggleDetached,
+  displays = EMPTY_DISPLAYS,
+  onMoveToNextDisplay
 }: FloatingTerminalWindowControlsProps): React.JSX.Element {
   const defaultTuiAgent = useAppStore((s) => s.settings?.defaultTuiAgent ?? null)
   const createTab = useAppStore((s) => s.createTab)
@@ -156,48 +167,128 @@ export function FloatingTerminalWindowControls({
           </TooltipContent>
         </Tooltip>
       ) : null}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-xs"
-            className={controlButtonClassName}
-            aria-label={
-              maximized
-                ? translate(
-                    'auto.components.floating.terminal.FloatingTerminalWindowControls.1c79cba25d',
-                    'Restore floating workspace'
-                  )
-                : translate(
-                    'auto.components.floating.terminal.FloatingTerminalWindowControls.3f4ca29961',
-                    'Maximize floating workspace'
-                  )
-            }
-            aria-pressed={maximized}
-            onClick={onToggleMaximized}
-          >
-            {maximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>
-          {maximized
-            ? withShortcutHint(
-                translate(
-                  'auto.components.floating.terminal.FloatingTerminalWindowControls.b5686fee1e',
-                  'Restore'
-                ),
-                maximizeShortcutLabel
-              )
-            : withShortcutHint(
-                translate(
-                  'auto.components.floating.terminal.FloatingTerminalWindowControls.109870e023',
-                  'Maximize'
-                ),
-                maximizeShortcutLabel
+      {displays.length >= 2 && onMoveToNextDisplay ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-xs"
+              className={controlButtonClassName}
+              aria-label={
+                isDetached
+                  ? translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToNextDisplay',
+                      'Move floating workspace to next monitor'
+                    )
+                  : translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToSecondDisplay',
+                      'Send floating workspace to Monitor 2'
+                    )
+              }
+              onClick={onMoveToNextDisplay}
+            >
+              <Monitor className="size-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={6}>
+            {isDetached
+              ? translate(
+                  'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToNextDisplay',
+                  'Move to next monitor'
+                )
+              : translate(
+                  'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToSecondDisplay',
+                  'Send to Monitor 2'
+                )}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+      {onToggleDetached ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-xs"
+              className={controlButtonClassName}
+              aria-label={
+                isDetached
+                  ? translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.dock',
+                      'Dock floating workspace into main window'
+                    )
+                  : translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.detach',
+                      'Detach floating workspace to separate window'
+                    )
+              }
+              onClick={onToggleDetached}
+            >
+              {isDetached ? (
+                <Minimize2 className="size-3.5" />
+              ) : (
+                <ExternalLink className="size-3.5" />
               )}
-        </TooltipContent>
-      </Tooltip>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={6}>
+            {isDetached
+              ? translate(
+                  'auto.components.floating.terminal.FloatingTerminalWindowControls.dock',
+                  'Dock into main window'
+                )
+              : translate(
+                  'auto.components.floating.terminal.FloatingTerminalWindowControls.detach',
+                  'Detach to separate window'
+                )}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+      {!isDetached ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-xs"
+              className={controlButtonClassName}
+              aria-label={
+                maximized
+                  ? translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.1c79cba25d',
+                      'Restore floating workspace'
+                    )
+                  : translate(
+                      'auto.components.floating.terminal.FloatingTerminalWindowControls.3f4ca29961',
+                      'Maximize floating workspace'
+                    )
+              }
+              aria-pressed={maximized}
+              onClick={onToggleMaximized}
+            >
+              {maximized ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={6}>
+            {maximized
+              ? withShortcutHint(
+                  translate(
+                    'auto.components.floating.terminal.FloatingTerminalWindowControls.b5686fee1e',
+                    'Restore'
+                  ),
+                  maximizeShortcutLabel
+                )
+              : withShortcutHint(
+                  translate(
+                    'auto.components.floating.terminal.FloatingTerminalWindowControls.109870e023',
+                    'Maximize'
+                  ),
+                  maximizeShortcutLabel
+                )}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

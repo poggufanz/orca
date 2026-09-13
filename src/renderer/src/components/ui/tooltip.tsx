@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Tooltip as TooltipPrimitive } from 'radix-ui'
 
+import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
 import { cn } from '@/lib/utils'
 
 function TooltipProvider({
@@ -33,10 +34,18 @@ function TooltipContent({
   sideOffset = 0,
   showArrow = true,
   children,
+  portalContainer,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content> & { showArrow?: boolean }) {
+}: React.ComponentProps<typeof TooltipPrimitive.Content> & {
+  showArrow?: boolean
+  portalContainer?: HTMLElement | null
+}) {
+  const contextContainer = usePopoutPortalContainer()
+  const resolvedContainer =
+    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+
   return (
-    <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Portal container={resolvedContainer}>
       <TooltipPrimitive.Content
         data-slot="tooltip-content"
         sideOffset={sideOffset}
