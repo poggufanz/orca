@@ -55,33 +55,20 @@ export function FloatingTerminalDisplaysMenu({
               variant="outline"
               size="icon-xs"
               className={controlButtonClassName}
-              aria-label={
-                isDetached
-                  ? translate(
-                      'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToNextDisplay',
-                      'Move floating workspace to next monitor'
-                    )
-                  : translate(
-                      'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToSecondDisplay',
-                      'Send floating workspace to Monitor 2'
-                    )
-              }
-              onClick={onMoveToNextDisplay}
+              aria-label={translate(
+                'auto.components.floating.terminal.FloatingTerminalWindowControls.displaysHeader',
+                'Displays'
+              )}
             >
               <Monitor className="size-3.5" />
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={6}>
-          {isDetached
-            ? translate(
-                'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToNextDisplay',
-                'Move to next monitor'
-              )
-            : translate(
-                'auto.components.floating.terminal.FloatingTerminalWindowControls.moveToSecondDisplay',
-                'Send to Monitor 2'
-              )}
+          {translate(
+            'auto.components.floating.terminal.FloatingTerminalWindowControls.displaysHeader',
+            'Displays'
+          )}
         </TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end" side="bottom" className="w-56">
