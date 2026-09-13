@@ -34,6 +34,8 @@ type FloatingTerminalPanelShortcutsInput = Pick<
   FloatingTerminalPanelMaximize & {
     open: boolean
     onOpenChange: (open: boolean) => void
+    isDetached?: boolean
+    minimize?: () => void
   }
 
 export function useFloatingTerminalPanelShortcuts({
@@ -51,7 +53,9 @@ export function useFloatingTerminalPanelShortcuts({
   openFloatingMarkdownTab,
   toggleMaximized,
   open,
-  onOpenChange
+  onOpenChange,
+  isDetached,
+  minimize
 }: FloatingTerminalPanelShortcutsInput) {
   const closeActiveFloatingTerminalPane = useCallback(() => {
     const handle = activeTerminalId ? terminalPaneRegistry.getHandle(activeTerminalId) : null
@@ -175,6 +179,8 @@ export function useFloatingTerminalPanelShortcuts({
       consume()
       if (resolution.action === 'floatingWorkspace.maximize') {
         toggleMaximized()
+      } else if (isDetached && minimize) {
+        minimize()
       } else {
         onOpenChange(false)
       }
@@ -189,6 +195,8 @@ export function useFloatingTerminalPanelShortcuts({
       createFloatingBrowserTab,
       createFloatingMarkdownTab,
       createFloatingTerminalTab,
+      isDetached,
+      minimize,
       onOpenChange,
       openFloatingMarkdownTab,
       toggleMaximized,

@@ -74,6 +74,10 @@ describe('useFloatingWorkspacePopout', () => {
         getDisplays: vi.fn().mockResolvedValue(mockDisplays),
         moveToDisplay: vi.fn().mockResolvedValue(true),
         moveToNextDisplay: vi.fn().mockResolvedValue(true),
+        minimize: vi.fn().mockResolvedValue(true),
+        restore: vi.fn().mockResolvedValue(true),
+        isMinimized: vi.fn().mockResolvedValue(false),
+        focus: vi.fn().mockResolvedValue(true),
         onDisplaysChanged: vi.fn((cb) => {
           displayChangeListener = cb
           return () => {
@@ -165,5 +169,24 @@ describe('useFloatingWorkspacePopout', () => {
     })
 
     expect(window.api.floatingWorkspace.moveToNextDisplay).toHaveBeenCalled()
+  })
+
+  it('invokes minimize, restore, and focus IPC through returned callbacks', async () => {
+    const { result } = renderHook(() => useFloatingWorkspacePopout())
+
+    act(() => {
+      result.current.minimize()
+    })
+    expect(window.api.floatingWorkspace.minimize).toHaveBeenCalled()
+
+    act(() => {
+      result.current.restore()
+    })
+    expect(window.api.floatingWorkspace.restore).toHaveBeenCalled()
+
+    act(() => {
+      result.current.focus()
+    })
+    expect(window.api.floatingWorkspace.focus).toHaveBeenCalled()
   })
 })

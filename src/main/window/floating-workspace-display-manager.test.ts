@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  focusFloatingWorkspacePopout,
   getConnectedDisplays,
   getFloatingWorkspacePopoutWindow,
+  isFloatingWorkspacePopoutMinimized,
+  minimizeFloatingWorkspacePopout,
   moveWindowToDisplay,
   moveWindowToNextDisplay,
+  restoreFloatingWorkspacePopout,
   setFloatingWorkspacePopoutWindow
 } from './floating-workspace-display-manager'
 
@@ -96,5 +100,31 @@ describe('floating-workspace-display-manager', () => {
       x: 1920 + Math.round((2560 - 900) / 2),
       y: 40 + Math.round((1400 - 600) / 2)
     })
+  })
+
+  it('minimizes, restores, checks minimized state, and focuses popout window', () => {
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      minimize: vi.fn(),
+      restore: vi.fn(),
+      focus: vi.fn(),
+      isMinimized: vi.fn(() => true)
+    }
+
+    setFloatingWorkspacePopoutWindow(mockWindow as never)
+
+    expect(minimizeFloatingWorkspacePopout()).toBe(true)
+    expect(mockWindow.minimize).toHaveBeenCalled()
+
+    expect(isFloatingWorkspacePopoutMinimized()).toBe(true)
+
+    expect(restoreFloatingWorkspacePopout()).toBe(true)
+    expect(mockWindow.restore).toHaveBeenCalled()
+    expect(mockWindow.focus).toHaveBeenCalled()
+
+    mockWindow.isMinimized.mockReturnValue(false)
+    expect(focusFloatingWorkspacePopout()).toBe(true)
+    expect(mockWindow.focus).toHaveBeenCalledTimes(2)
   })
 })

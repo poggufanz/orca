@@ -97,7 +97,8 @@ export function renderFloatingTerminalPanelSurface({
   displays,
   dock,
   detach,
-  moveToNextDisplay
+  moveToNextDisplay,
+  minimize
 }: ReturnType<typeof useFloatingTerminalPanelController>): React.JSX.Element {
   return (
     // Why: sit above the z-40 notification cards so the floating workspace is
@@ -223,7 +224,7 @@ export function renderFloatingTerminalPanelSurface({
             onToggleMaximized={toggleMaximized}
             onMinimize={() => {
               if (isDetached) {
-                dock()
+                minimize()
               } else {
                 onOpenChange(false)
               }

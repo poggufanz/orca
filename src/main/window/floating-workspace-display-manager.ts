@@ -26,6 +26,47 @@ export function closeFloatingWorkspacePopout(): void {
   floatingWorkspacePopoutWindow = null
 }
 
+export function minimizeFloatingWorkspacePopout(): boolean {
+  const win = getFloatingWorkspacePopoutWindow()
+  if (win && !win.isDestroyed()) {
+    win.minimize()
+    return true
+  }
+  return false
+}
+
+export function restoreFloatingWorkspacePopout(): boolean {
+  const win = getFloatingWorkspacePopoutWindow()
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) {
+      win.restore()
+    }
+    win.focus()
+    return true
+  }
+  return false
+}
+
+export function isFloatingWorkspacePopoutMinimized(): boolean {
+  const win = getFloatingWorkspacePopoutWindow()
+  if (win && !win.isDestroyed()) {
+    return win.isMinimized()
+  }
+  return false
+}
+
+export function focusFloatingWorkspacePopout(): boolean {
+  const win = getFloatingWorkspacePopoutWindow()
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) {
+      win.restore()
+    }
+    win.focus()
+    return true
+  }
+  return false
+}
+
 export function getConnectedDisplays(): WorkspaceDisplayInfo[] {
   try {
     const primary = screen.getPrimaryDisplay()

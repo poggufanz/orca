@@ -60,6 +60,7 @@ export function useFloatingTerminalPanelController({
     ...items
   })
   const maximize = useFloatingTerminalPanelMaximize({ ...storeState, ...localState, open })
+  const popout = useFloatingWorkspacePopout()
   const shortcuts = useFloatingTerminalPanelShortcuts({
     ...localState,
     ...items,
@@ -67,7 +68,9 @@ export function useFloatingTerminalPanelController({
     ...closeActions,
     ...maximize,
     open,
-    onOpenChange
+    onOpenChange,
+    isDetached: popout.isDetached,
+    minimize: popout.minimize
   })
   useFloatingTerminalGlobalShortcutListeners({ ...localState, ...shortcuts, open })
   useFloatingTerminalGuestBridge({ ...shortcuts, open })
@@ -79,7 +82,6 @@ export function useFloatingTerminalPanelController({
     ...maximize
   })
   const orchestrationDismissal = useFloatingTerminalOrchestrationDismissal(localState)
-  const popout = useFloatingWorkspacePopout()
 
   return {
     open,

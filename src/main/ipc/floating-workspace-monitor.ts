@@ -1,9 +1,13 @@
 import { ipcMain } from 'electron'
 import {
+  focusFloatingWorkspacePopout,
   getConnectedDisplays,
   getFloatingWorkspacePopoutWindow,
+  isFloatingWorkspacePopoutMinimized,
+  minimizeFloatingWorkspacePopout,
   moveWindowToDisplay,
-  moveWindowToNextDisplay
+  moveWindowToNextDisplay,
+  restoreFloatingWorkspacePopout
 } from '../window/floating-workspace-display-manager'
 import { isTrustedUIRenderer, sendToTrustedUIRenderer } from './ui'
 
@@ -11,6 +15,10 @@ export function registerFloatingWorkspaceMonitorHandlers(): void {
   ipcMain.removeHandler('floatingWorkspace:getDisplays')
   ipcMain.removeHandler('floatingWorkspace:moveToDisplay')
   ipcMain.removeHandler('floatingWorkspace:moveToNextDisplay')
+  ipcMain.removeHandler('floatingWorkspace:minimize')
+  ipcMain.removeHandler('floatingWorkspace:restore')
+  ipcMain.removeHandler('floatingWorkspace:isMinimized')
+  ipcMain.removeHandler('floatingWorkspace:focus')
 
   ipcMain.handle('floatingWorkspace:getDisplays', (event) => {
     if (!isTrustedUIRenderer(event.sender)) {
@@ -39,6 +47,34 @@ export function registerFloatingWorkspaceMonitorHandlers(): void {
       return false
     }
     return moveWindowToNextDisplay(popout)
+  })
+
+  ipcMain.handle('floatingWorkspace:minimize', (event) => {
+    if (!isTrustedUIRenderer(event.sender)) {
+      return false
+    }
+    return minimizeFloatingWorkspacePopout()
+  })
+
+  ipcMain.handle('floatingWorkspace:restore', (event) => {
+    if (!isTrustedUIRenderer(event.sender)) {
+      return false
+    }
+    return restoreFloatingWorkspacePopout()
+  })
+
+  ipcMain.handle('floatingWorkspace:isMinimized', (event) => {
+    if (!isTrustedUIRenderer(event.sender)) {
+      return false
+    }
+    return isFloatingWorkspacePopoutMinimized()
+  })
+
+  ipcMain.handle('floatingWorkspace:focus', (event) => {
+    if (!isTrustedUIRenderer(event.sender)) {
+      return false
+    }
+    return focusFloatingWorkspacePopout()
   })
 }
 

@@ -160,6 +160,18 @@ export function useFloatingWorkspacePopout() {
     [detach, isDetached]
   )
 
+  const minimize = useCallback((): void => {
+    void window.api?.floatingWorkspace?.minimize?.()
+  }, [])
+
+  const restore = useCallback((): void => {
+    void window.api?.floatingWorkspace?.restore?.()
+  }, [])
+
+  const focus = useCallback((): void => {
+    void window.api?.floatingWorkspace?.focus?.()
+  }, [])
+
   return {
     isDetached,
     displays,
@@ -167,6 +179,9 @@ export function useFloatingWorkspacePopout() {
     detach,
     dock,
     moveToNextDisplay,
-    moveToDisplay
+    moveToDisplay,
+    minimize,
+    restore,
+    focus
   }
 }

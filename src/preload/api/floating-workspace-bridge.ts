@@ -14,5 +14,9 @@ export const floatingWorkspaceApi: FloatingWorkspaceApi = {
       callback(displays)
     ipcRenderer.on('floatingWorkspace:displaysChanged', listener)
     return () => ipcRenderer.removeListener('floatingWorkspace:displaysChanged', listener)
-  }
+  },
+  minimize: (): Promise<boolean> => ipcRenderer.invoke('floatingWorkspace:minimize'),
+  restore: (): Promise<boolean> => ipcRenderer.invoke('floatingWorkspace:restore'),
+  isMinimized: (): Promise<boolean> => ipcRenderer.invoke('floatingWorkspace:isMinimized'),
+  focus: (): Promise<boolean> => ipcRenderer.invoke('floatingWorkspace:focus')
 }
