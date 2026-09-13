@@ -5,6 +5,7 @@ import { Command as CommandPrimitive } from 'cmdk'
 import { SearchIcon } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 
+import { useResolvedPortalContainer } from '@/components/ui/portal-container-context'
 import { cn } from '@/lib/utils'
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
@@ -43,9 +44,10 @@ function CommandDialog({
 }) {
   const { className: commandClassName, ...commandRootProps } = commandProps ?? {}
 
+  const resolvedContainer = useResolvedPortalContainer(null)
   return (
     <DialogPrimitive.Root {...props}>
-      <DialogPrimitive.Portal>
+      <DialogPrimitive.Portal container={resolvedContainer}>
         <DialogPrimitive.Overlay
           // Why: matches the DialogOverlay recipe — deeper scrim + 2px backdrop
           // blur so the dark canvas lifts off the command palette. A flat

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Tooltip as TooltipPrimitive } from 'radix-ui'
 
-import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
+import { useResolvedPortalContainer } from '@/components/ui/portal-container-context'
 import { cn } from '@/lib/utils'
 
 function TooltipProvider({
@@ -25,8 +25,40 @@ function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
 
-function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+function TooltipTrigger({
+  ref: consumerRef,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  const cleanupRef = React.useRef<(() => void) | null>(null)
+
+  // Why: Radix never sees a trigger pointerleave when focus jumps windows, so replay it on view blur to run its own close (also cancels a pending delayed open).
+  const setTriggerNode = React.useCallback(
+    (node: HTMLButtonElement | null) => {
+      if (typeof consumerRef === 'function') {
+        consumerRef(node)
+      } else if (consumerRef) {
+        consumerRef.current = node
+      }
+      cleanupRef.current?.()
+      cleanupRef.current = null
+      const view = node?.ownerDocument?.defaultView
+      if (!node || !view || view.closed) {
+        return
+      }
+      const closeOnViewBlur = (): void => {
+        if (node.isConnected) {
+          node.dispatchEvent(new PointerEvent('pointerout', { bubbles: true }))
+        }
+      }
+      view.addEventListener('blur', closeOnViewBlur)
+      cleanupRef.current = () => view.removeEventListener('blur', closeOnViewBlur)
+    },
+    [consumerRef]
+  )
+
+  React.useEffect(() => () => cleanupRef.current?.(), [])
+
+  return <TooltipPrimitive.Trigger ref={setTriggerNode} data-slot="tooltip-trigger" {...props} />
 }
 
 function TooltipContent({
@@ -40,9 +72,7 @@ function TooltipContent({
   showArrow?: boolean
   portalContainer?: HTMLElement | null
 }) {
-  const contextContainer = usePopoutPortalContainer()
-  const resolvedContainer =
-    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  const resolvedContainer = useResolvedPortalContainer(portalContainer)
 
   return (
     <TooltipPrimitive.Portal container={resolvedContainer}>

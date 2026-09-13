@@ -1,8 +1,23 @@
 import { BrowserWindow, screen } from 'electron'
 
-let activeIdentifyWindows: BrowserWindow[] = []
+// Auto-dismiss delay: long enough to read each monitor number, short enough to never trap input behind an overlay.
+const IDENTIFY_OVERLAY_MS = 2500
 
+let activeIdentifyWindows: BrowserWindow[] = []
+let identifyCloseTimeoutId: NodeJS.Timeout | null = null
+
+function escapeIdentifyHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
 export function closeIdentifyWindows(): void {
+  if (identifyCloseTimeoutId) {
+    clearTimeout(identifyCloseTimeoutId)
+    identifyCloseTimeoutId = null
+  }
   for (const win of activeIdentifyWindows) {
     if (!win.isDestroyed()) {
       win.close()
@@ -114,7 +129,7 @@ export function identifyDisplays(): boolean {
 <body>
   <div class="card">
     <div class="number">${displayNumber}</div>
-    <div class="label">${label}</div>
+    <div class="label">${escapeIdentifyHtml(label)}</div>
     <div class="info">${resolution}</div>
   </div>
 </body>
@@ -134,9 +149,9 @@ export function identifyDisplays(): boolean {
       activeIdentifyWindows.push(overlay)
     })
 
-    setTimeout(() => {
+    identifyCloseTimeoutId = setTimeout(() => {
       closeIdentifyWindows()
-    }, 2500)
+    }, IDENTIFY_OVERLAY_MS)
 
     return true
   } catch (err) {

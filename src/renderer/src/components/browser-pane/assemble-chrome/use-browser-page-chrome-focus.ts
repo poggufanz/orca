@@ -107,7 +107,9 @@ export function useBrowserPageChromeFocus({
         }
         addressBarFocusGrabRef.current = null
         cancelled = true
-        window.cancelAnimationFrame(frameId)
+        ;(addressBarInputRef.current?.ownerDocument?.defaultView ?? window).cancelAnimationFrame(
+          frameId
+        )
         keepAddressBarFocusRef.current = false
       }
       const focusAddressBar = (): void => {
@@ -123,7 +125,9 @@ export function useBrowserPageChromeFocus({
         }
         attempts += 1
         if (attempts < ADDRESS_BAR_FOCUS_FRAMES) {
-          frameId = window.requestAnimationFrame(focusAddressBar)
+          frameId = (
+            addressBarInputRef.current?.ownerDocument?.defaultView ?? window
+          ).requestAnimationFrame(focusAddressBar)
         } else {
           addressBarFocusGrabRef.current = null
           keepAddressBarFocusRef.current = false

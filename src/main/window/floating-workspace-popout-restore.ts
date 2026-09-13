@@ -1,18 +1,98 @@
-import { type BrowserWindow, screen } from 'electron'
+import type { BrowserWindow } from 'electron'
+import { screen } from 'electron'
 import {
   calculateTargetDisplayBounds,
   type WorkspaceDisplayInfo
 } from '../../shared/floating-workspace-display'
 
+const MINIMIZED_COORD_SENTINEL = -10000
+const RESTORE_SETTLE_MS = 200
+const RESTORE_REPOSITION_MS = 60
+const RESTORE_CONFIRM_MS = 150
+
 let lastKnownBounds: Electron.Rectangle | null = null
 let lastKnownDisplayId: number | null = null
+let minimizedDisplayId: number | null = null
+let minimizedBounds: Electron.Rectangle | null = null
 let wasMaximizedBeforeMinimize = false
 let isRestoring = false
 let restoreTimeoutId: NodeJS.Timeout | null = null
 
+type PopoutRestoreHandlers = {
+  updateState: () => void
+  onMinimize: () => void
+  onRestore: () => void
+}
+const restoreHandlersByWindow = new WeakMap<BrowserWindow, PopoutRestoreHandlers>()
+let restoreTrackedWindow: BrowserWindow | null = null
+
+function detachPopoutRestoreTracking(window: BrowserWindow): void {
+  const handlers = restoreHandlersByWindow.get(window)
+  if (!handlers) {
+    return
+  }
+  restoreHandlersByWindow.delete(window)
+  if (typeof window.removeListener !== 'function') {
+    return
+  }
+  try {
+    window.removeListener('moved', handlers.updateState)
+    window.removeListener('resize', handlers.updateState)
+    window.removeListener('minimize', handlers.onMinimize)
+    window.removeListener('restore', handlers.onRestore)
+  } catch {
+    // ignore
+  }
+}
+
+function resolveRestoreTarget(
+  displays: readonly WorkspaceDisplayInfo[]
+): WorkspaceDisplayInfo | undefined {
+  const targetId = minimizedDisplayId ?? lastKnownDisplayId
+  return (
+    (targetId != null ? displays.find((d) => d.id === targetId) : null) ??
+    displays.find((d) => !d.isPrimary) ??
+    displays[0]
+  )
+}
+
+function placeMaximizedOnDisplay(window: BrowserWindow, targetDisplay: WorkspaceDisplayInfo): void {
+  if (typeof window.unmaximize === 'function') {
+    window.unmaximize()
+  }
+  if (typeof window.setBounds === 'function') {
+    window.setBounds(calculateTargetDisplayBounds(targetDisplay))
+  }
+  if (typeof window.maximize === 'function') {
+    window.maximize()
+  }
+}
+
+function resolveRestoreBounds(targetDisplay: WorkspaceDisplayInfo): Electron.Rectangle {
+  const bounds = minimizedBounds ?? lastKnownBounds
+  if (bounds) {
+    try {
+      if (screen.getDisplayMatching(bounds).id === targetDisplay.id) {
+        return bounds
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return calculateTargetDisplayBounds(targetDisplay, {
+    currentBounds: bounds ?? undefined
+  })
+}
+
 export function resetPopoutRestoreState(): void {
+  if (restoreTrackedWindow) {
+    detachPopoutRestoreTracking(restoreTrackedWindow)
+    restoreTrackedWindow = null
+  }
   lastKnownBounds = null
   lastKnownDisplayId = null
+  minimizedDisplayId = null
+  minimizedBounds = null
   wasMaximizedBeforeMinimize = false
   isRestoring = false
   if (restoreTimeoutId) {
@@ -42,14 +122,14 @@ export function isPopoutRestoring(): boolean {
 export function getPopoutCurrentDisplayId(window: BrowserWindow): number | null {
   try {
     const isMin = typeof window.isMinimized === 'function' ? window.isMinimized() : false
-    if (isMin || isRestoring) {
+    if (isMin || isRestoring || minimizedDisplayId != null) {
       return lastKnownDisplayId
     }
     if (typeof window.getBounds !== 'function') {
       return lastKnownDisplayId
     }
     const bounds = window.getBounds()
-    if (bounds.x <= -10000 || bounds.y <= -10000) {
+    if (bounds.x <= MINIMIZED_COORD_SENTINEL || bounds.y <= MINIMIZED_COORD_SENTINEL) {
       return lastKnownDisplayId
     }
     return screen.getDisplayMatching(bounds).id
@@ -67,15 +147,11 @@ export function repositionPopoutToDisplay(
     return
   }
   const currentBounds = window.getBounds()
-  if (currentBounds.x <= -10000 || currentBounds.y <= -10000) {
+  if (currentBounds.x <= MINIMIZED_COORD_SENTINEL || currentBounds.y <= MINIMIZED_COORD_SENTINEL) {
     return
   }
 
-  const targetDisplay =
-    (lastKnownDisplayId != null ? displays.find((d) => d.id === lastKnownDisplayId) : null) ??
-    displays.find((d) => !d.isPrimary) ??
-    displays[0]
-
+  const targetDisplay = resolveRestoreTarget(displays)
   if (!targetDisplay) {
     isRestoring = false
     return
@@ -94,33 +170,11 @@ export function repositionPopoutToDisplay(
 
   if (shouldBeMax) {
     if (isWrongDisplay) {
-      if (typeof window.unmaximize === 'function') {
-        window.unmaximize()
-      }
-      const targetBounds = calculateTargetDisplayBounds(targetDisplay)
-      if (typeof window.setBounds === 'function') {
-        window.setBounds(targetBounds)
-      }
-      if (typeof window.maximize === 'function') {
-        window.maximize()
-      }
+      placeMaximizedOnDisplay(window, targetDisplay)
     }
   } else {
-    let lastBoundsDisplayId: number | null = null
-    if (lastKnownBounds) {
-      try {
-        lastBoundsDisplayId = screen.getDisplayMatching(lastKnownBounds).id
-      } catch {
-        // ignore
-      }
-    }
-    const bounds =
-      lastKnownBounds && lastBoundsDisplayId === targetDisplay.id
-        ? lastKnownBounds
-        : calculateTargetDisplayBounds(targetDisplay, {
-            currentBounds: lastKnownBounds ?? undefined
-          })
-    if (isWrongDisplay || lastKnownBounds) {
+    const bounds = resolveRestoreBounds(targetDisplay)
+    if (isWrongDisplay || lastKnownBounds || minimizedBounds) {
       if (typeof window.setBounds === 'function') {
         window.setBounds(bounds)
       }
@@ -137,56 +191,49 @@ export function restorePopoutWindow(
   if (isMin && typeof window.restore === 'function') {
     window.restore()
   }
-  const targetDisplay =
-    (lastKnownDisplayId != null ? displays.find((d) => d.id === lastKnownDisplayId) : null) ??
-    displays.find((d) => !d.isPrimary) ??
-    displays[0]
+  const targetDisplay = resolveRestoreTarget(displays)
+  if (!targetDisplay) {
+    isRestoring = false
+    return false
+  }
 
-  if (targetDisplay) {
-    const isCurrentlyMax = typeof window.isMaximized === 'function' ? window.isMaximized() : false
-    const shouldBeMax = wasMaximizedBeforeMinimize || isCurrentlyMax
-    if (shouldBeMax) {
-      if (typeof window.unmaximize === 'function') {
-        window.unmaximize()
-      }
-      if (typeof window.setBounds === 'function') {
-        window.setBounds(calculateTargetDisplayBounds(targetDisplay))
-      }
-      if (typeof window.maximize === 'function') {
-        window.maximize()
-      }
-    } else if (lastKnownBounds) {
-      if (typeof window.setBounds === 'function') {
-        window.setBounds(lastKnownBounds)
-      }
-    } else if (typeof window.setBounds === 'function') {
-      window.setBounds(calculateTargetDisplayBounds(targetDisplay))
-    }
+  const isCurrentlyMax = typeof window.isMaximized === 'function' ? window.isMaximized() : false
+  const shouldBeMax = wasMaximizedBeforeMinimize || isCurrentlyMax
+  if (shouldBeMax) {
+    placeMaximizedOnDisplay(window, targetDisplay)
+  } else if (typeof window.setBounds === 'function') {
+    window.setBounds(resolveRestoreBounds(targetDisplay))
   }
   if (typeof window.focus === 'function') {
     window.focus()
   }
   setTimeout(() => {
+    minimizedDisplayId = null
+    minimizedBounds = null
     isRestoring = false
-  }, 200)
+  }, RESTORE_SETTLE_MS)
   return true
 }
 
 export function recordPopoutMinimize(window: BrowserWindow): void {
   const isMax = typeof window.isMaximized === 'function' ? window.isMaximized() : false
-  if (isMax) {
-    wasMaximizedBeforeMinimize = true
-  }
+  wasMaximizedBeforeMinimize = isMax
   try {
     if (typeof window.getBounds === 'function') {
       const bounds = window.getBounds()
-      if (bounds.x > -10000 && bounds.y > -10000) {
+      if (bounds.x > MINIMIZED_COORD_SENTINEL && bounds.y > MINIMIZED_COORD_SENTINEL) {
         lastKnownDisplayId = screen.getDisplayMatching(bounds).id
+        if (!isMax) {
+          lastKnownBounds = bounds
+        }
       }
     }
   } catch {
     // ignore
   }
+  minimizedDisplayId = lastKnownDisplayId
+  minimizedBounds = lastKnownBounds
+  isRestoring = true
 }
 
 export function installPopoutRestoreTracking(
@@ -196,7 +243,7 @@ export function installPopoutRestoreTracking(
   try {
     if (typeof window.getBounds === 'function') {
       const bounds = window.getBounds()
-      if (bounds.x > -10000 && bounds.y > -10000) {
+      if (bounds.x > MINIMIZED_COORD_SENTINEL && bounds.y > MINIMIZED_COORD_SENTINEL) {
         lastKnownBounds = bounds
         lastKnownDisplayId = screen.getDisplayMatching(bounds).id
       }
@@ -208,20 +255,24 @@ export function installPopoutRestoreTracking(
   if (typeof window.on !== 'function') {
     return
   }
+  if (restoreTrackedWindow && restoreTrackedWindow !== window) {
+    detachPopoutRestoreTracking(restoreTrackedWindow)
+  }
+  restoreTrackedWindow = window
+  if (restoreHandlersByWindow.has(window)) {
+    return
+  }
 
   const updateState = (): void => {
-    if (isRestoring || window.isDestroyed()) {
+    if (isRestoring || minimizedDisplayId != null || window.isDestroyed()) {
       return
     }
     const isMin = typeof window.isMinimized === 'function' ? window.isMinimized() : false
-    if (isMin) {
-      return
-    }
-    if (typeof window.getBounds !== 'function') {
+    if (isMin || typeof window.getBounds !== 'function') {
       return
     }
     const bounds = window.getBounds()
-    if (bounds.x <= -10000 || bounds.y <= -10000) {
+    if (bounds.x <= MINIMIZED_COORD_SENTINEL || bounds.y <= MINIMIZED_COORD_SENTINEL) {
       return
     }
     const isMax = typeof window.isMaximized === 'function' ? window.isMaximized() : false
@@ -236,15 +287,13 @@ export function installPopoutRestoreTracking(
     }
   }
 
-  window.on('moved', updateState)
-  window.on('resize', updateState)
-  window.on('minimize', () => {
+  const onMinimize = (): void => {
     if (!window.isDestroyed()) {
       recordPopoutMinimize(window)
     }
-  })
+  }
 
-  window.on('restore', () => {
+  const onRestore = (): void => {
     isRestoring = true
     repositionPopoutToDisplay(window, getDisplays())
     if (restoreTimeoutId) {
@@ -254,9 +303,17 @@ export function installPopoutRestoreTracking(
       repositionPopoutToDisplay(window, getDisplays())
       setTimeout(() => {
         repositionPopoutToDisplay(window, getDisplays())
+        minimizedDisplayId = null
+        minimizedBounds = null
         isRestoring = false
         updateState()
-      }, 150)
-    }, 60)
-  })
+      }, RESTORE_CONFIRM_MS)
+    }, RESTORE_REPOSITION_MS)
+  }
+
+  window.on('moved', updateState)
+  window.on('resize', updateState)
+  window.on('minimize', onMinimize)
+  window.on('restore', onRestore)
+  restoreHandlersByWindow.set(window, { updateState, onMinimize, onRestore })
 }

@@ -106,7 +106,12 @@ export function registerTerminalPanePasteListeners({
     if (!manager) {
       return
     }
-    const pane = manager.getActivePane() ?? manager.getPanes()[0]
+    // Why: the manager spans every pane — dispatch to the event target's pane.
+    const targetPane =
+      target instanceof Element
+        ? manager.getPanes().find((pane) => pane.container?.contains(target))
+        : undefined
+    const pane = targetPane ?? manager.getActivePane() ?? manager.getPanes()[0]
     if (!pane) {
       return
     }
@@ -145,7 +150,12 @@ export function registerTerminalPanePasteListeners({
     if (!manager) {
       return
     }
-    const pane = manager.getActivePane() ?? manager.getPanes()[0]
+    // Why: the manager spans every pane — dispatch to the event target's pane.
+    const targetPane =
+      target instanceof Element
+        ? manager.getPanes().find((pane) => pane.container?.contains(target))
+        : undefined
+    const pane = targetPane ?? manager.getActivePane() ?? manager.getPanes()[0]
     if (!pane) {
       return
     }
@@ -234,17 +244,19 @@ export function registerTerminalPanePasteListeners({
     }
   }
 
+  // Why: APP_MENU events fire per-window — global window misses the popout.
+  const eventWindow = container.ownerDocument?.defaultView ?? window
   container.addEventListener('keydown', onKeyPaste, { capture: true })
   container.addEventListener('paste', onPaste, { capture: true })
-  window.addEventListener(APP_MENU_PASTE_EVENT, onAppMenuPaste)
-  window.addEventListener(APP_MENU_SELECTION_ACTION_EVENT, onAppMenuSelectionAction)
+  eventWindow.addEventListener(APP_MENU_PASTE_EVENT, onAppMenuPaste)
+  eventWindow.addEventListener(APP_MENU_SELECTION_ACTION_EVENT, onAppMenuSelectionAction)
   return () => {
     if (pasteSuppressionTimerId !== null) {
       window.clearTimeout(pasteSuppressionTimerId)
     }
     container.removeEventListener('keydown', onKeyPaste, { capture: true })
     container.removeEventListener('paste', onPaste, { capture: true })
-    window.removeEventListener(APP_MENU_PASTE_EVENT, onAppMenuPaste)
-    window.removeEventListener(APP_MENU_SELECTION_ACTION_EVENT, onAppMenuSelectionAction)
+    eventWindow.removeEventListener(APP_MENU_PASTE_EVENT, onAppMenuPaste)
+    eventWindow.removeEventListener(APP_MENU_SELECTION_ACTION_EVENT, onAppMenuSelectionAction)
   }
 }

@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { PopoutPortalContainerContext } from './popout-portal-container-context'
+import { PopoutPortalContainerContext } from '@/components/ui/portal-container-context'
 import { renderFloatingTerminalPanelSurface } from './FloatingTerminalPanelSurface'
 import type { FloatingTerminalPanelProps } from './floating-terminal-panel-types'
 import { useFloatingTerminalPanelController } from './use-floating-terminal-panel-controller'

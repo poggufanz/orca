@@ -362,7 +362,7 @@ export default function BrowserAddressBar({
     ]
   )
 
-  useBrowserAddressBarDismissal(open, dismissSuggestions)
+  useBrowserAddressBarDismissal(open, dismissSuggestions, inputRef)
 
   useEffect(() => {
     if (!dismissSuggestionsRef) {
@@ -389,7 +389,8 @@ export default function BrowserAddressBar({
           // interaction, but during the focus-retry loop the input may still
           // hold focus. Only allow programmatic closes (setOpen(false) from
           // our handlers) or genuine outside dismissals.
-          if (!next && inputRef.current && document.activeElement === inputRef.current) {
+          const doc = inputRef.current?.ownerDocument ?? document
+          if (!next && inputRef.current && doc.activeElement === inputRef.current) {
             return
           }
           if (!next) {

@@ -116,7 +116,7 @@ export function getConnectedDisplays(): WorkspaceDisplayInfo[] {
 }
 
 export function moveWindowToDisplay(window: BrowserWindow, targetDisplayId: number): boolean {
-  if (window.isDestroyed()) {
+  if (window.isDestroyed() || !Number.isInteger(targetDisplayId)) {
     return false
   }
   const displays = getConnectedDisplays()
@@ -152,8 +152,13 @@ export function moveWindowToNextDisplay(window: BrowserWindow): boolean {
   if (!currentBounds) {
     return false
   }
-  const currentDisplay = screen.getDisplayMatching(currentBounds)
-  const nextDisplay = findNextDisplay(displays, currentDisplay.id)
+  let currentDisplayId: number
+  try {
+    currentDisplayId = screen.getDisplayMatching(currentBounds).id
+  } catch {
+    return false
+  }
+  const nextDisplay = findNextDisplay(displays, currentDisplayId)
   if (!nextDisplay) {
     return false
   }

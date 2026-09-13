@@ -244,4 +244,86 @@ describe('floating-workspace-display-manager', () => {
   it('cleans up identify windows when closed', () => {
     expect(() => closeIdentifyWindows()).not.toThrow()
   })
+
+  it('rejects non-integer display ids without touching bounds', () => {
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      getBounds: vi.fn(() => ({ x: 100, y: 100, width: 900, height: 600 })),
+      setBounds: vi.fn()
+    }
+
+    for (const displayId of [Number.NaN, Number.POSITIVE_INFINITY, 1.5]) {
+      expect(moveWindowToDisplay(mockWindow as never, displayId)).toBe(false)
+    }
+    expect(mockWindow.setBounds).not.toHaveBeenCalled()
+  })
+
+  it('returns false from moveWindowToNextDisplay when display lookup throws', () => {
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      getBounds: vi.fn(() => ({ x: 100, y: 100, width: 900, height: 600 })),
+      setBounds: vi.fn()
+    }
+    mockScreen.getDisplayMatching.mockImplementation(() => {
+      throw new Error('no display')
+    })
+
+    expect(moveWindowToNextDisplay(mockWindow as never)).toBe(false)
+    expect(mockWindow.setBounds).not.toHaveBeenCalled()
+  })
+
+  it('returns false without focusing or placing when no displays are connected', () => {
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      isMinimized: vi.fn(() => true),
+      isMaximized: vi.fn(() => false),
+      getBounds: vi.fn(() => ({ x: 100, y: 100, width: 900, height: 600 })),
+      setBounds: vi.fn(),
+      restore: vi.fn(),
+      focus: vi.fn(),
+      on: vi.fn()
+    }
+    mockScreen.getAllDisplays.mockReturnValue([])
+    setFloatingWorkspacePopoutWindow(mockWindow as never)
+
+    expect(restoreFloatingWorkspacePopout()).toBe(false)
+    expect(mockWindow.setBounds).not.toHaveBeenCalled()
+    expect(mockWindow.focus).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the non-primary display when the last known display is gone', () => {
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      isMinimized: vi.fn(() => false),
+      isMaximized: vi.fn(() => false),
+      getBounds: vi.fn(() => ({ x: 2000, y: 150, width: 900, height: 700 })),
+      setBounds: vi.fn(),
+      restore: vi.fn(),
+      focus: vi.fn(),
+      on: vi.fn()
+    }
+    const display3 = {
+      id: 3,
+      label: 'Tertiary Display',
+      bounds: { x: 4480, y: 0, width: 1920, height: 1080 },
+      workArea: { x: 4480, y: 0, width: 1920, height: 1040 },
+      scaleFactor: 1
+    }
+    mockScreen.getDisplayMatching.mockReturnValue(display2)
+    setFloatingWorkspacePopoutWindow(mockWindow as never)
+
+    mockScreen.getAllDisplays.mockReturnValue([display1, display3])
+    mockScreen.getDisplayMatching.mockReturnValue(display1)
+    expect(restoreFloatingWorkspacePopout()).toBe(true)
+    expect(mockWindow.setBounds).toHaveBeenCalledWith({
+      x: 4480 + Math.round((1920 - 900) / 2),
+      y: Math.round((1040 - 700) / 2),
+      width: 900,
+      height: 700
+    })
+  })
 })

@@ -2,6 +2,10 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useFloatingWorkspacePopout } from './use-floating-workspace-popout'
+import {
+  isFloatingWorkspacePopoutDetached,
+  resetFloatingWorkspacePopoutSharedStateForTest
+} from './floating-workspace-popout-shared-state'
 import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
 
 const mockDisplays: WorkspaceDisplayInfo[] = [
@@ -28,7 +32,7 @@ describe('useFloatingWorkspacePopout', () => {
   let mockPopup: {
     document: {
       title: string
-      head: { appendChild: ReturnType<typeof vi.fn> }
+      head: { appendChild: ReturnType<typeof vi.fn>; querySelectorAll: ReturnType<typeof vi.fn> }
       documentElement: { className: string; style: { cssText: string } }
       body: { className: string; appendChild: ReturnType<typeof vi.fn> }
       getElementById: ReturnType<typeof vi.fn>
@@ -44,13 +48,14 @@ describe('useFloatingWorkspacePopout', () => {
 
   beforeEach(() => {
     displayChangeListener = null
+    resetFloatingWorkspacePopoutSharedStateForTest()
     const mockContainer = document.createElement('div')
     mockContainer.id = 'floating-workspace-portal-root'
 
     mockPopup = {
       document: {
         title: '',
-        head: { appendChild: vi.fn() },
+        head: { appendChild: vi.fn(), querySelectorAll: vi.fn(() => []) },
         documentElement: { className: '', style: { cssText: '' } },
         body: { className: '', appendChild: vi.fn() },
         getElementById: vi.fn(() => null),
@@ -173,23 +178,12 @@ describe('useFloatingWorkspacePopout', () => {
     expect(window.api.floatingWorkspace.moveToNextDisplay).toHaveBeenCalled()
   })
 
-  it('invokes minimize, restore, and focus IPC through returned callbacks', async () => {
+  it('invokes minimize IPC through the returned callback', async () => {
     const { result } = renderHook(() => useFloatingWorkspacePopout())
-
     act(() => {
       result.current.minimize()
     })
     expect(window.api.floatingWorkspace.minimize).toHaveBeenCalled()
-
-    act(() => {
-      result.current.restore()
-    })
-    expect(window.api.floatingWorkspace.restore).toHaveBeenCalled()
-
-    act(() => {
-      result.current.focus()
-    })
-    expect(window.api.floatingWorkspace.focus).toHaveBeenCalled()
   })
 
   it('triggers identifyDisplays IPC and tracks target display in moveToDisplay', async () => {
@@ -211,5 +205,28 @@ describe('useFloatingWorkspacePopout', () => {
     })
     expect(window.api.floatingWorkspace.moveToDisplay).toHaveBeenCalledWith(1)
     expect(result.current.currentDisplayId).toBe(1)
+  })
+
+  it('publishes detached state for dialog scoping and clears it on dock', () => {
+    const { result } = renderHook(() => useFloatingWorkspacePopout())
+    expect(isFloatingWorkspacePopoutDetached()).toBe(false)
+    act(() => {
+      result.current.detach()
+    })
+    expect(isFloatingWorkspacePopoutDetached()).toBe(true)
+    act(() => {
+      result.current.dock()
+    })
+    expect(isFloatingWorkspacePopoutDetached()).toBe(false)
+  })
+
+  it('clears published detached state on unmount while detached', () => {
+    const { result, unmount } = renderHook(() => useFloatingWorkspacePopout())
+    act(() => {
+      result.current.detach()
+    })
+    expect(isFloatingWorkspacePopoutDetached()).toBe(true)
+    unmount()
+    expect(isFloatingWorkspacePopoutDetached()).toBe(false)
   })
 })

@@ -5,7 +5,7 @@ import { isRendererDocumentNavigation } from './renderer-document-navigation'
 /** Keep remote documents from inheriting an Orca window's privileged preload. */
 export function installPrivilegedWindowNavigationPolicy(contents: WebContents): void {
   contents.setWindowOpenHandler(({ url, frameName }) => {
-    if (frameName === 'orca-floating-workspace' || url === 'about:blank#floating-workspace') {
+    if (frameName === 'orca-floating-workspace' && url === 'about:blank#floating-workspace') {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
@@ -18,7 +18,10 @@ export function installPrivilegedWindowNavigationPolicy(contents: WebContents): 
           autoHideMenuBar: true,
           show: true,
           webPreferences: {
-            webviewTag: true
+            webviewTag: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true
           }
         }
       }

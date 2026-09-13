@@ -4,7 +4,7 @@ import * as React from 'react'
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 import { Select as SelectPrimitive } from 'radix-ui'
 
-import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
+import { useResolvedPortalContainer } from '@/components/ui/portal-container-context'
 import { cn } from '@/lib/utils'
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
@@ -65,9 +65,7 @@ function SelectContent({
 }: React.ComponentProps<typeof SelectPrimitive.Content> & {
   portalContainer?: HTMLElement | null
 }) {
-  const contextContainer = usePopoutPortalContainer()
-  const resolvedContainer =
-    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  const resolvedContainer = useResolvedPortalContainer(portalContainer)
 
   return (
     <SelectPrimitive.Portal container={resolvedContainer}>

@@ -3,6 +3,7 @@ import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import EmulatorPane from '@/components/emulator-pane/EmulatorPane'
 import TabBar from '@/components/tab-bar/TabBar'
 import TerminalPane from '@/components/terminal-pane/TerminalPane'
+import RunningTerminalCloseDialog from '@/components/terminal-pane/RunningTerminalCloseDialog'
 import { shouldDeferParkedPtyExitTabClose } from '@/components/terminal-pane/terminal-parked-tab-watchers'
 import { closeTerminalTab } from '@/components/terminal/terminal-tab-actions'
 import { isTerminalImeInputContextRefreshing } from '@/components/terminal-pane/terminal-ime-input-context-refresh'
@@ -357,7 +358,7 @@ export function renderFloatingTerminalPanelSurface({
               onOpenMarkdown={openFloatingMarkdownTab}
               onNewBrowser={createFloatingBrowserTab}
               showNewBrowser={managedBrowserCreationEnabled}
-              onClose={() => onOpenChange(false)}
+              onClose={() => (isDetached ? minimize() : onOpenChange(false))}
               onFocusPanel={focusPanelForShortcuts}
               newTerminalShortcut={newTerminalShortcut}
               newBrowserShortcut={newBrowserShortcut}
@@ -392,6 +393,8 @@ export function renderFloatingTerminalPanelSurface({
         handleFloatingSaveDialogDiscard,
         handleFloatingSaveDialogSave
       })}
+      {/* Why: store-driven host in App.tsx lives in the main document — this one mounts the same request in popup.document.body while detached. */}
+      {isDetached ? <RunningTerminalCloseDialog scope="popout" /> : null}
     </div>
   )
 }

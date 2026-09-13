@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
 
-import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
+import { useResolvedPortalContainer } from '@/components/ui/portal-container-context'
 import { cn } from '@/lib/utils'
 
 // React delegates wheel passively, so native defaultPrevented may not reflect synthetic cancellation.
@@ -86,11 +86,11 @@ type PopoverContentRef = React.ComponentProps<typeof PopoverPrimitive.Content>['
 
 function attachPopoverContent(
   content: HTMLDivElement,
-  portalContainer: HTMLElement | null | undefined,
+  portalContainer: Element | DocumentFragment | null | undefined,
   forwardedRef: PopoverContentRef | undefined
 ): () => void {
   // React delegates portal events here first, preserving onWheel-before-shim ordering.
-  const wheelTarget = portalContainer ?? content.ownerDocument.body
+  const wheelTarget = (portalContainer as HTMLElement | null) ?? content.ownerDocument.body
   const handleWheel = (event: WheelEvent): void => handlePopoverWheel(event, content)
   wheelTarget.addEventListener('wheel', handleWheel, { passive: false })
 
@@ -124,9 +124,7 @@ function PopoverContent({
 }: React.ComponentProps<typeof PopoverPrimitive.Content> & {
   portalContainer?: HTMLElement | null
 }) {
-  const contextContainer = usePopoutPortalContainer()
-  const resolvedContainer =
-    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  const resolvedContainer = useResolvedPortalContainer(portalContainer)
 
   const handleConsumerWheel = React.useCallback(
     (event: React.WheelEvent<HTMLDivElement>): void => {

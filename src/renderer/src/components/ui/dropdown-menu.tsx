@@ -2,7 +2,7 @@ import * as React from 'react'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react'
 
-import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
+import { useResolvedPortalContainer } from '@/components/ui/portal-container-context'
 import { cn } from '@/lib/utils'
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
@@ -13,9 +13,7 @@ function DropdownMenuPortal({
   container,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
-  const contextContainer = usePopoutPortalContainer()
-  const resolvedContainer =
-    container ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  const resolvedContainer = useResolvedPortalContainer(container)
 
   return (
     <DropdownMenuPrimitive.Portal
@@ -41,9 +39,7 @@ function DropdownMenuContent({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
   portalContainer?: HTMLElement | null
 }) {
-  const contextContainer = usePopoutPortalContainer()
-  const resolvedContainer =
-    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  const resolvedContainer = useResolvedPortalContainer(portalContainer)
 
   return (
     <DropdownMenuPrimitive.Portal container={resolvedContainer}>
@@ -228,9 +224,7 @@ function DropdownMenuSubContent({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent> & {
   portalContainer?: HTMLElement | null
 }) {
-  const contextContainer = usePopoutPortalContainer()
-  const resolvedContainer =
-    portalContainer ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  const resolvedContainer = useResolvedPortalContainer(portalContainer)
 
   return (
     <DropdownMenuPrimitive.Portal container={resolvedContainer}>

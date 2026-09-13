@@ -33,7 +33,7 @@ export function useFloatingTerminalPanelController({
   const localState = useFloatingTerminalPanelLocalState()
   const items = useFloatingTerminalPanelItems({ ...storeState, open: isSurfaceActive })
 
-  useContextualTour('floating-workspace', open, 'floating_workspace_visible', {
+  useContextualTour('floating-workspace', isSurfaceActive, 'floating_workspace_visible', {
     recordFeatureInteraction: tourInteractionSnapshot?.recordFeatureInteractionForTour ?? false,
     featureInteractionPersisted: tourInteractionSnapshot?.persisted,
     wasFeaturePreviouslyInteracted: tourInteractionSnapshot?.wasPreviouslyInteracted
@@ -73,7 +73,7 @@ export function useFloatingTerminalPanelController({
     ...createActions,
     ...closeActions,
     ...maximize,
-    open,
+    open: isSurfaceActive,
     onOpenChange,
     isDetached: popout.isDetached,
     minimize: popout.minimize

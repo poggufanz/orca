@@ -95,7 +95,7 @@ export function FloatingTerminalDisplaysMenu({
           const isCurrent = isDetached ? display.id === currentDisplayId : display.isPrimary
           return (
             <DropdownMenuItem
-              key={display.id}
+              key={`${display.id}:${display.bounds.x},${display.bounds.y}`}
               className="flex cursor-pointer items-center justify-between py-1.5 text-xs"
               onClick={() => {
                 if (onMoveToDisplay) {

@@ -62,7 +62,12 @@ export function useTabStripPointerActivation({
       // Why a press that starts under a guest forgives one window focus: an in-page <webview>
       // holding the keyboard leaves the embedder blurred, so this very press is what pulls focus
       // back and #7316's flush would eat the click that takes the reader out of a browser pane.
-      let pendingGuestFocusHandoff = isGuestHoldingKeyboard(targetNode?.ownerDocument)
+      // Why one more when the press lands in an unfocused auxiliary window: that press also
+      // pulls focus (popout gain), and dual-window bookkeeping would flush the legit click.
+      const targetWindowSettled =
+        targetWindow === window ? true : (targetWindow.document.hasFocus?.() ?? true)
+      let pendingFocusForgiveness =
+        (targetWindowSettled ? 0 : 1) + (isGuestHoldingKeyboard(targetNode?.ownerDocument) ? 1 : 0)
 
       const cleanup = (): void => {
         targetWindow.removeEventListener('pointerup', onPointerUp)
@@ -72,8 +77,6 @@ export function useTabStripPointerActivation({
         if (targetWindow !== window) {
           window.removeEventListener('pointerup', onPointerUp)
           window.removeEventListener('pointercancel', onPointerCancel)
-          window.removeEventListener('blur', onPointerCancel)
-          window.removeEventListener('focus', onWindowFocus)
         }
         releaseTabStripPointerGesture()
         cleanupRef.current = null
@@ -93,22 +96,21 @@ export function useTabStripPointerActivation({
         cleanup()
       }
       const onWindowFocus = (): void => {
-        if (pendingGuestFocusHandoff) {
-          pendingGuestFocusHandoff = false
+        if (pendingFocusForgiveness > 0) {
+          pendingFocusForgiveness -= 1
           return
         }
         cleanup()
       }
-
       targetWindow.addEventListener('pointerup', onPointerUp)
       targetWindow.addEventListener('pointercancel', onPointerCancel)
       targetWindow.addEventListener('blur', onPointerCancel)
       targetWindow.addEventListener('focus', onWindowFocus)
       if (targetWindow !== window) {
+        // Why: release can land in either window, but focus/blur stay on the
+        // press window so the other window's bookkeeping never flushes the click.
         window.addEventListener('pointerup', onPointerUp)
         window.addEventListener('pointercancel', onPointerCancel)
-        window.addEventListener('blur', onPointerCancel)
-        window.addEventListener('focus', onWindowFocus)
       }
       cleanupRef.current = cleanup
     },

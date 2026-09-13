@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, screen } from 'electron'
 import {
   focusFloatingWorkspacePopout,
   getConnectedDisplays,
@@ -39,7 +39,11 @@ export function registerFloatingWorkspaceMonitorHandlers(): void {
   })
 
   ipcMain.handle('floatingWorkspace:moveToDisplay', (event, displayId: unknown) => {
-    if (!isTrustedUIRenderer(event.sender) || typeof displayId !== 'number') {
+    if (
+      !isTrustedUIRenderer(event.sender) ||
+      typeof displayId !== 'number' ||
+      !Number.isInteger(displayId)
+    ) {
       return false
     }
     const popout = getFloatingWorkspacePopoutWindow()
@@ -94,6 +98,18 @@ export function registerFloatingWorkspaceMonitorHandlers(): void {
     }
     return focusFloatingWorkspacePopout()
   })
+
+  // Why removeListener first: register runs again on every core-handler setup, so re-adding blindly would fan out one broadcast per setup.
+  if (typeof screen?.on === 'function') {
+    if (typeof screen.removeListener === 'function') {
+      screen.removeListener('display-added', broadcastDisplaysChanged)
+      screen.removeListener('display-removed', broadcastDisplaysChanged)
+      screen.removeListener('display-metrics-changed', broadcastDisplaysChanged)
+    }
+    screen.on('display-added', broadcastDisplaysChanged)
+    screen.on('display-removed', broadcastDisplaysChanged)
+    screen.on('display-metrics-changed', broadcastDisplaysChanged)
+  }
 }
 
 export function broadcastDisplaysChanged(): void {

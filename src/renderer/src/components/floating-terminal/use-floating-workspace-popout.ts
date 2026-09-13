@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { SYNC_FIT_PANES_EVENT } from '@/constants/terminal'
 import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
+import { setFloatingWorkspacePopoutDetached } from './floating-workspace-popout-shared-state'
+import { syncPopoutStyles } from './floating-workspace-popout-styles'
 
 export function useFloatingWorkspacePopout() {
   const [isDetached, setIsDetached] = useState(false)
@@ -8,6 +11,7 @@ export function useFloatingWorkspacePopout() {
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
   const [popupWindow, setPopupWindow] = useState<Window | null>(null)
   const popupRef = useRef<Window | null>(null)
+  const refreshTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     let active = true
@@ -38,6 +42,10 @@ export function useFloatingWorkspacePopout() {
   }, [])
 
   const dock = useCallback((): void => {
+    if (refreshTimeoutRef.current !== null) {
+      window.clearTimeout(refreshTimeoutRef.current)
+      refreshTimeoutRef.current = null
+    }
     if (popupRef.current && !popupRef.current.closed) {
       popupRef.current.close()
     }
@@ -51,7 +59,24 @@ export function useFloatingWorkspacePopout() {
   const detach = useCallback(
     (targetDisplayId?: number): void => {
       if (popupRef.current && !popupRef.current.closed) {
-        popupRef.current.focus()
+        const live = popupRef.current
+        // Why: after a popout reload the old container is detached — re-query it.
+        let container = live.document.getElementById('floating-workspace-portal-root')
+        if (!container) {
+          container = live.document.createElement('div')
+          container.id = 'floating-workspace-portal-root'
+          container.className = 'h-full w-full'
+          live.document.body.appendChild(container)
+        }
+        live.document.documentElement.className = document.documentElement.className
+        live.document.documentElement.style.cssText = document.documentElement.style.cssText
+        if (syncPopoutStyles(document, live.document.head)) {
+          window.dispatchEvent(new Event(SYNC_FIT_PANES_EVENT))
+        }
+        setPortalContainer(container)
+        setPopupWindow(live)
+        setIsDetached(true)
+        live.focus()
         if (typeof targetDisplayId === 'number') {
           void window.api?.floatingWorkspace?.moveToDisplay?.(targetDisplayId).then(() => {
             setCurrentDisplayId(targetDisplayId)
@@ -82,12 +107,8 @@ export function useFloatingWorkspacePopout() {
       try {
         popup.document.title = 'Orca - Floating Workspace'
 
-        // Copy stylesheet and style tags
-        for (const sheet of Array.from(
-          document.querySelectorAll('link[rel="stylesheet"], style')
-        )) {
-          popup.document.head.appendChild(sheet.cloneNode(true))
-        }
+        // Why: deduped helper — raw-href keys, stale prune, source order.
+        syncPopoutStyles(document, popup.document.head)
 
         popup.document.documentElement.className = document.documentElement.className
         popup.document.documentElement.style.cssText = document.documentElement.style.cssText
@@ -108,11 +129,17 @@ export function useFloatingWorkspacePopout() {
 
         if (typeof targetDisplayId === 'number') {
           setCurrentDisplayId(targetDisplayId)
-          setTimeout(() => {
+          if (refreshTimeoutRef.current !== null) {
+            window.clearTimeout(refreshTimeoutRef.current)
+          }
+          refreshTimeoutRef.current = window.setTimeout(() => {
             void window.api?.floatingWorkspace?.moveToDisplay?.(targetDisplayId)
           }, 50)
         } else {
-          setTimeout(refreshCurrentDisplayId, 50)
+          if (refreshTimeoutRef.current !== null) {
+            window.clearTimeout(refreshTimeoutRef.current)
+          }
+          refreshTimeoutRef.current = window.setTimeout(refreshCurrentDisplayId, 50)
         }
       } catch (err) {
         console.warn('[floating-workspace] Error setting up popout document:', err)
@@ -132,6 +159,10 @@ export function useFloatingWorkspacePopout() {
     }
 
     const handleUnload = (): void => {
+      if (refreshTimeoutRef.current !== null) {
+        window.clearTimeout(refreshTimeoutRef.current)
+        refreshTimeoutRef.current = null
+      }
       setIsDetached(false)
       setPortalContainer(null)
       setPopupWindow(null)
@@ -139,41 +170,91 @@ export function useFloatingWorkspacePopout() {
       setCurrentDisplayId(null)
     }
     popupWindow.addEventListener('beforeunload', handleUnload)
-
-    const observer = new MutationObserver(() => {
+    // Why: OS-chrome close can skip beforeunload — poll closed instead.
+    const closedPollId = window.setInterval(() => {
+      if (popupWindow.closed) {
+        handleUnload()
+      }
+    }, 500)
+    const syncTheme = (): void => {
       if (!popupWindow.closed) {
         popupWindow.document.documentElement.className = document.documentElement.className
         popupWindow.document.documentElement.style.cssText = document.documentElement.style.cssText
       }
-    })
+    }
+    const syncStyles = (): void => {
+      if (popupWindow.closed) {
+        return
+      }
+      syncTheme()
+      // Why: a late sheet changes cell metrics with no resize — refit once it lands.
+      if (syncPopoutStyles(document, popupWindow.document.head)) {
+        window.dispatchEvent(new Event(SYNC_FIT_PANES_EVENT))
+      }
+    }
+    const observer = new MutationObserver(syncTheme)
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class', 'style']
     })
-
+    const headObserver = new MutationObserver(syncStyles)
+    if (document.head) {
+      headObserver.observe(document.head, { childList: true })
+    }
     return () => {
       try {
         popupWindow.removeEventListener('beforeunload', handleUnload)
       } catch {
         // window may already be closed
       }
+      window.clearInterval(closedPollId)
       observer.disconnect()
+      headObserver.disconnect()
+      if (refreshTimeoutRef.current !== null) {
+        window.clearTimeout(refreshTimeoutRef.current)
+        refreshTimeoutRef.current = null
+      }
       if (!popupWindow.closed) {
         popupWindow.close()
       }
     }
   }, [popupWindow])
 
+  useEffect(() => {
+    setFloatingWorkspacePopoutDetached(isDetached)
+    return () => setFloatingWorkspacePopoutDetached(false)
+  }, [isDetached])
+
+  useEffect(() => {
+    if (!isDetached || !portalContainer) {
+      return
+    }
+    const view = portalContainer.ownerDocument.defaultView ?? window
+    if (typeof view.requestAnimationFrame !== 'function') {
+      return
+    }
+    // Why: the portal commits before the popup applies cloned sheets — fit next frame so panes measure styled boxes.
+    const frameId = view.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event(SYNC_FIT_PANES_EVENT))
+    })
+    return () => view.cancelAnimationFrame(frameId)
+  }, [isDetached, portalContainer])
+
   const moveToNextDisplay = useCallback((): void => {
     if (!isDetached) {
-      const nextDisplay = displays.find((d) => !d.isPrimary) ?? displays[0]
+      if (displays.length === 0) {
+        return
+      }
+      // Why: always picking the first secondary sticks with 3+ monitors — cycle.
+      const currentIndex = displays.findIndex((d) => d.id === currentDisplayId)
+      const nextDisplay = displays[(currentIndex + 1 + displays.length) % displays.length]
       detach(nextDisplay?.id)
       return
     }
     void window.api?.floatingWorkspace?.moveToNextDisplay?.().then(() => {
       refreshCurrentDisplayId()
     })
-  }, [detach, displays, isDetached, refreshCurrentDisplayId])
+  }, [currentDisplayId, detach, displays, isDetached, refreshCurrentDisplayId])
 
   const moveToDisplay = useCallback(
     (displayId: number): void => {
@@ -196,14 +277,6 @@ export function useFloatingWorkspacePopout() {
     void window.api?.floatingWorkspace?.minimize?.()
   }, [])
 
-  const restore = useCallback((): void => {
-    void window.api?.floatingWorkspace?.restore?.()
-  }, [])
-
-  const focus = useCallback((): void => {
-    void window.api?.floatingWorkspace?.focus?.()
-  }, [])
-
   return {
     isDetached,
     displays,
@@ -215,8 +288,6 @@ export function useFloatingWorkspacePopout() {
     moveToDisplay,
     identifyDisplays,
     refreshCurrentDisplayId,
-    minimize,
-    restore,
-    focus
+    minimize
   }
 }

@@ -32,7 +32,10 @@ import {
   TRAFFIC_LIGHT_RADIUS,
   TRAFFIC_LIGHT_X
 } from './main-window-visual-lifecycle'
-import { installMainWindowWebviewSecurity } from './main-window-webview-security'
+import {
+  installFloatingWorkspaceWebviewSecurity,
+  installMainWindowWebviewSecurity
+} from './main-window-webview-security'
 import { rectHasVisibleAreaOnAnyDisplay } from './window-bounds-validation'
 import { installWindowsPathRegistryChangeListener } from '../pty/windows-path-registry-change'
 
@@ -207,9 +210,12 @@ export function createMainWindow(
   })
 
   mainWindow.webContents.on('did-create-window', (childWindow, details) => {
-    if (details.frameName === 'orca-floating-workspace') {
+    if (
+      details.frameName === 'orca-floating-workspace' &&
+      details.url === 'about:blank#floating-workspace'
+    ) {
       setFloatingWorkspacePopoutWindow(childWindow)
-      installMainWindowWebviewSecurity(childWindow)
+      installFloatingWorkspaceWebviewSecurity(childWindow)
       childWindow.on('closed', () => {
         setFloatingWorkspacePopoutWindow(null)
       })

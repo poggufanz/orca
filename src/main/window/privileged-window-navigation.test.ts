@@ -113,7 +113,7 @@ describe('privileged window navigation policy', () => {
       'file:///Applications/Orca.app/Contents/Resources/app.asar/out/renderer/index.html'
     const fixture = createFixture(appUrl)
     const result = fixture.openWindow({
-      url: 'about:blank',
+      url: 'about:blank#floating-workspace',
       frameName: 'orca-floating-workspace'
     })
 
@@ -124,9 +124,35 @@ describe('privileged window navigation policy', () => {
       width: 960,
       height: 640,
       webPreferences: {
-        webviewTag: true
+        webviewTag: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
       }
     })
+    expect(openExternal).not.toHaveBeenCalled()
+  })
+
+  it('denies the magic frame name on any other URL', () => {
+    const appUrl =
+      'file:///Applications/Orca.app/Contents/Resources/app.asar/out/renderer/index.html'
+    const fixture = createFixture(appUrl)
+    const result = fixture.openWindow({
+      url: 'about:blank',
+      frameName: 'orca-floating-workspace'
+    })
+
+    expect(result.action).toBe('deny')
+    expect(openExternal).not.toHaveBeenCalled()
+  })
+
+  it('denies the popout URL without the magic frame name', () => {
+    const appUrl =
+      'file:///Applications/Orca.app/Contents/Resources/app.asar/out/renderer/index.html'
+    const fixture = createFixture(appUrl)
+    const result = fixture.openWindow({ url: 'about:blank#floating-workspace' })
+
+    expect(result.action).toBe('deny')
     expect(openExternal).not.toHaveBeenCalled()
   })
 

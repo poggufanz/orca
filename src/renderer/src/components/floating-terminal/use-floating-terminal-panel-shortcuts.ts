@@ -155,6 +155,8 @@ export function useFloatingTerminalPanelShortcuts({
         consume()
         if (activeClosableTab) {
           closeFloatingItemConfirmed(activeClosableTab.id)
+        } else if (isDetached && minimize) {
+          minimize()
         } else {
           onOpenChange(false)
         }
@@ -178,7 +180,10 @@ export function useFloatingTerminalPanelShortcuts({
       }
       consume()
       if (resolution.action === 'floatingWorkspace.maximize') {
-        toggleMaximized()
+        // Why: maximize button hidden when detached — avoid stale state.
+        if (!isDetached) {
+          toggleMaximized()
+        }
       } else if (isDetached && minimize) {
         minimize()
       } else {
@@ -233,10 +238,9 @@ export function useFloatingTerminalPanelShortcuts({
     handleFloatingPanelShortcutAction,
     visibleFloatingTabOrder
   ])
-
   const handleShortcutSurfaceKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (!open || event.defaultPrevented || event.repeat) {
+      if (!(open || isDetached) || event.defaultPrevented || event.repeat) {
         return
       }
       const target = event.target
@@ -254,7 +258,7 @@ export function useFloatingTerminalPanelShortcuts({
       }
       applyFloatingPanelShortcut(resolution, nativeEvent, () => event.preventDefault())
     },
-    [applyFloatingPanelShortcut, open, panelRef, resolveFloatingPanelShortcut]
+    [applyFloatingPanelShortcut, isDetached, open, panelRef, resolveFloatingPanelShortcut]
   )
 
   return { floatingShortcutListenersRef, handleShortcutSurfaceKeyDown }

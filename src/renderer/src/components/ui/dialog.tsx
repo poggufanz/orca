@@ -4,7 +4,7 @@ import * as React from 'react'
 import { XIcon } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 
-import { usePopoutPortalContainer } from '@/components/floating-terminal/popout-portal-container-context'
+import { useResolvedPortalContainer } from '@/components/ui/portal-container-context'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -21,9 +21,7 @@ function DialogPortal({
   container,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  const contextContainer = usePopoutPortalContainer()
-  const resolvedContainer =
-    container ?? contextContainer?.ownerDocument?.body ?? contextContainer ?? undefined
+  const resolvedContainer = useResolvedPortalContainer(container)
   return (
     <DialogPrimitive.Portal data-slot="dialog-portal" container={resolvedContainer} {...props} />
   )
@@ -57,13 +55,15 @@ function DialogContent({
   children,
   overlayClassName,
   showCloseButton = true,
+  portalContainer,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   overlayClassName?: string
   showCloseButton?: boolean
+  portalContainer?: HTMLElement | null
 }) {
   return (
-    <DialogPortal data-slot="dialog-portal">
+    <DialogPortal data-slot="dialog-portal" container={portalContainer ?? undefined}>
       <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
