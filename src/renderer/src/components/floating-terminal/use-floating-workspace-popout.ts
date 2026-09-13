@@ -60,14 +60,16 @@ export function useFloatingWorkspacePopout() {
         return
       }
 
-      if (typeof window === 'undefined' || typeof window.open !== 'function') {
-        return
-      }
+      const targetDisplay =
+        typeof targetDisplayId === 'number' ? displays.find((d) => d.id === targetDisplayId) : null
+      const features = targetDisplay
+        ? `left=${targetDisplay.workArea.x + Math.max(0, Math.round((targetDisplay.workArea.width - 960) / 2))},top=${targetDisplay.workArea.y + Math.max(0, Math.round((targetDisplay.workArea.height - 640) / 2))},width=960,height=640`
+        : 'width=960,height=640'
 
       const popup = window.open(
         'about:blank#floating-workspace',
         'orca-floating-workspace',
-        'width=960,height=640'
+        features
       )
 
       if (!popup) {
@@ -121,7 +123,7 @@ export function useFloatingWorkspacePopout() {
         setCurrentDisplayId(null)
       }
     },
-    [refreshCurrentDisplayId]
+    [displays, refreshCurrentDisplayId]
   )
 
   useEffect(() => {

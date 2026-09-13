@@ -168,6 +168,51 @@ describe('floating-workspace-display-manager', () => {
     expect(mockWindow.setBounds).toHaveBeenCalledWith({ x: 2000, y: 150, width: 900, height: 700 })
   })
 
+  it('restores maximized window back to secondary monitor when restored', () => {
+    const listeners: Record<string, () => void> = {}
+    const mockWindow = {
+      isDestroyed: vi.fn(() => false),
+      webContents: { isDestroyed: vi.fn(() => false) },
+      isMinimized: vi.fn(() => false),
+      isMaximized: vi.fn(() => false),
+      getBounds: vi.fn(() => ({ x: 1920, y: 0, width: 2560, height: 1440 })),
+      setBounds: vi.fn(),
+      maximize: vi.fn(),
+      unmaximize: vi.fn(),
+      restore: vi.fn(),
+      focus: vi.fn(),
+      on: vi.fn((event: string, cb: () => void) => {
+        listeners[event] = cb
+      })
+    }
+
+    mockScreen.getDisplayMatching.mockReturnValue(display2)
+    setFloatingWorkspacePopoutWindow(mockWindow as never)
+
+    // Window gets maximized on display 2
+    mockWindow.isMaximized.mockReturnValue(true)
+    listeners['resize']?.()
+
+    // Window gets minimized
+    mockWindow.isMinimized.mockReturnValue(true)
+    mockWindow.isMaximized.mockReturnValue(false)
+    listeners['minimize']?.()
+
+    // OS restores window, but initially puts it on display 1 (wrong display)
+    mockWindow.isMinimized.mockReturnValue(false)
+    mockWindow.isMaximized.mockReturnValue(true)
+    mockWindow.getBounds.mockReturnValue({ x: 0, y: 0, width: 1920, height: 1080 })
+    mockScreen.getDisplayMatching.mockReturnValue(display1)
+
+    listeners['restore']?.()
+
+    expect(mockWindow.unmaximize).toHaveBeenCalled()
+    expect(mockWindow.setBounds).toHaveBeenCalled()
+    const setBoundsCall = mockWindow.setBounds.mock.calls[0][0]
+    expect(setBoundsCall.x).toBeGreaterThanOrEqual(1920)
+    expect(mockWindow.maximize).toHaveBeenCalled()
+  })
+
   it('gets current display ID for active popout window', () => {
     expect(getCurrentDisplayId()).toBeNull()
 
