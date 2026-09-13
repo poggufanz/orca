@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
 
 import { useResolvedPortalContainer } from '@/components/ui/portal-container-context'
+import { getDomRealm } from '@/lib/dom-realm'
 import { cn } from '@/lib/utils'
 
 // React delegates wheel passively, so native defaultPrevented may not reflect synthetic cancellation.
@@ -29,10 +30,17 @@ function resolvePopoverScroller(
   target: EventTarget | null,
   content: HTMLElement
 ): HTMLElement | null {
-  let node = target instanceof Node ? target : null
+  // Why: popout-portaled content lives in another document — main-realm
+  // constructors miss its nodes and the wheel shim never engages there.
+  const {
+    Node: RealmNode,
+    HTMLElement: RealmHTMLElement,
+    getComputedStyle: getStyle
+  } = getDomRealm(content.ownerDocument?.defaultView)
+  let node = target instanceof RealmNode ? target : null
   while (node && node !== content.parentNode) {
-    if (node instanceof HTMLElement && node.scrollHeight > node.clientHeight) {
-      const overflowY = getComputedStyle(node).overflowY
+    if (node instanceof RealmHTMLElement && node.scrollHeight > node.clientHeight) {
+      const overflowY = getStyle(node).overflowY
       if (overflowY === 'auto' || overflowY === 'scroll') {
         return node
       }
@@ -43,10 +51,11 @@ function resolvePopoverScroller(
 }
 
 function handlePopoverWheel(event: WheelEvent, content: HTMLDivElement): void {
+  const { Node: RealmNode } = getDomRealm(content.ownerDocument?.defaultView)
   if (
     event.defaultPrevented ||
     consumerPreventedWheelEvents.has(event) ||
-    !(event.target instanceof Node) ||
+    !(event.target instanceof RealmNode) ||
     !content.contains(event.target)
   ) {
     return

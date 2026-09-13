@@ -1,4 +1,5 @@
 import { BrowserWindow, screen } from 'electron'
+import { isWindowlessLaunch } from './foreground-activation-policy'
 
 // Auto-dismiss delay: long enough to read each monitor number, short enough to never trap input behind an overlay.
 const IDENTIFY_OVERLAY_MS = 2500
@@ -27,7 +28,7 @@ export function closeIdentifyWindows(): void {
 }
 
 export function identifyDisplays(): boolean {
-  if (process.env.ORCA_BACKGROUND_LAUNCH === '1') {
+  if (isWindowlessLaunch()) {
     return true
   }
   closeIdentifyWindows()

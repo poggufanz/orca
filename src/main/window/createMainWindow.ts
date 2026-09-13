@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { getAppIconPath } from '../app-icon'
 import { browserManager } from '../browser/browser-manager'
 import { getBrowserClientHostId } from '../browser/browser-client-host-id'
+import { restoreDocPreviewFailureSink } from '../browser/doc-preview-failure-notice'
 import { formatBrowserClientHostIdArgument } from '../../shared/browser-client-host-id-argument'
 import { markSystemSessionEnding } from '../crash-reporting/expected-teardown-state'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
@@ -219,6 +220,11 @@ export function createMainWindow(
       installFloatingWorkspaceWebviewSecurity(childWindow)
       childWindow.on('closed', () => {
         setFloatingWorkspacePopoutWindow(null)
+        // Why: a floating doc preview overwrites the shared failure sink; hand it back so main-window failures are not dropped.
+        restoreDocPreviewFailureSink(
+          childWindow.webContents,
+          mainWindow.isDestroyed() ? null : mainWindow.webContents
+        )
       })
     }
   })

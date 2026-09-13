@@ -87,9 +87,7 @@ describe('useFloatingWorkspacePopout', () => {
         moveToNextDisplay: vi.fn().mockResolvedValue(true),
         identifyDisplays: vi.fn().mockResolvedValue(true),
         minimize: vi.fn().mockResolvedValue(true),
-        restore: vi.fn().mockResolvedValue(true),
         isMinimized: vi.fn().mockResolvedValue(false),
-        focus: vi.fn().mockResolvedValue(true),
         onDisplaysChanged: vi.fn((cb) => {
           displayChangeListener = cb
           return () => {
@@ -154,6 +152,27 @@ describe('useFloatingWorkspacePopout', () => {
     expect(result.current.portalContainer).toBeNull()
   })
 
+  it('closes the popup instead of orphaning it when popout setup fails', async () => {
+    mockPopup.document.getElementById = vi.fn(() => {
+      throw new Error('denied')
+    })
+    const { result } = renderHook(() => useFloatingWorkspacePopout())
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    act(() => {
+      result.current.detach()
+    })
+
+    // Why: without a portal container the window is unusable — leaving it open
+    // strands the user with a dead dock and a second window on next detach.
+    expect(mockPopup.close).toHaveBeenCalled()
+    expect(result.current.isDetached).toBe(false)
+    expect(result.current.portalContainer).toBeNull()
+  })
+
   it('captures live page progress before closing the popout window when docking', async () => {
     let resolveCapture: ((value: unknown) => void) | null = null
     const webview = {
@@ -203,6 +222,10 @@ describe('useFloatingWorkspacePopout', () => {
     })
 
     expect(mockWindowOpen).toHaveBeenCalled()
+    // Why: with no known display the shared helper prefers the first secondary over displays[0].
+    const features = mockWindowOpen.mock.calls[0][2] as string
+    expect(features).toContain('left=2400')
+    expect(result.current.currentDisplayId).toBe(2)
     expect(result.current.isDetached).toBe(true)
   })
 

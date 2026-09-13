@@ -166,6 +166,31 @@ describe('browser-page-progress-retention', () => {
     expect(script).toContain('media.currentTime = targetTime')
   })
 
+  it('pauses restored media that was paused at capture', () => {
+    const mockWebview = {
+      executeJavaScript: vi.fn().mockResolvedValue(undefined)
+    } as unknown as Electron.WebviewTag
+
+    restoreBrowserPageProgress(mockWebview, {
+      url: 'https://youtube.com/watch?v=xyz',
+      scrollX: 0,
+      scrollY: 0,
+      media: {
+        currentTime: 65,
+        paused: true,
+        playbackRate: 1
+      },
+      timestamp: Date.now()
+    })
+
+    expect(mockWebview.executeJavaScript).toHaveBeenCalledOnce()
+    const script = vi.mocked(mockWebview.executeJavaScript).mock.calls[0][0] as string
+    // Why: a restored page can autoplay — without the pause branch a video
+    // paused at capture resumes playing after every restore.
+    expect(script).toContain('const wasPaused = true')
+    expect(script).toContain('media.pause()')
+  })
+
   it('starts and stops progress tracking timer safely', () => {
     ensureBrowserPageProgressTracking()
     // Repeated call is safe and idempotent

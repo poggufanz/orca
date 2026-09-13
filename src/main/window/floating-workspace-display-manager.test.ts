@@ -292,9 +292,12 @@ describe('floating-workspace-display-manager', () => {
     listeners['restore']?.()
 
     expect(mockWindow.unmaximize).toHaveBeenCalled()
-    expect(mockWindow.setBounds).toHaveBeenCalled()
-    const setBoundsCall = mockWindow.setBounds.mock.calls[0][0]
-    expect(setBoundsCall.x).toBeGreaterThanOrEqual(1920)
+    expect(mockWindow.setBounds).toHaveBeenCalledWith({
+      x: 1920 + Math.round((2560 - 960) / 2),
+      y: 40 + Math.round((1400 - 640) / 2),
+      width: 960,
+      height: 640
+    })
     expect(mockWindow.maximize).toHaveBeenCalled()
   })
 

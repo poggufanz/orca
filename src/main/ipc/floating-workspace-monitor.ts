@@ -1,6 +1,5 @@
 import { ipcMain, screen } from 'electron'
 import {
-  focusFloatingWorkspacePopout,
   getConnectedDisplays,
   getCurrentDisplayId,
   getFloatingWorkspacePopoutWindow,
@@ -8,8 +7,7 @@ import {
   isFloatingWorkspacePopoutMinimized,
   minimizeFloatingWorkspacePopout,
   moveWindowToDisplay,
-  moveWindowToNextDisplay,
-  restoreFloatingWorkspacePopout
+  moveWindowToNextDisplay
 } from '../window/floating-workspace-display-manager'
 import { isTrustedUIRenderer, sendToTrustedUIRenderer } from './ui'
 
@@ -20,9 +18,7 @@ export function registerFloatingWorkspaceMonitorHandlers(): void {
   ipcMain.removeHandler('floatingWorkspace:moveToNextDisplay')
   ipcMain.removeHandler('floatingWorkspace:identifyDisplays')
   ipcMain.removeHandler('floatingWorkspace:minimize')
-  ipcMain.removeHandler('floatingWorkspace:restore')
   ipcMain.removeHandler('floatingWorkspace:isMinimized')
-  ipcMain.removeHandler('floatingWorkspace:focus')
 
   ipcMain.handle('floatingWorkspace:getDisplays', (event) => {
     if (!isTrustedUIRenderer(event.sender)) {
@@ -78,25 +74,11 @@ export function registerFloatingWorkspaceMonitorHandlers(): void {
     return minimizeFloatingWorkspacePopout()
   })
 
-  ipcMain.handle('floatingWorkspace:restore', (event) => {
-    if (!isTrustedUIRenderer(event.sender)) {
-      return false
-    }
-    return restoreFloatingWorkspacePopout()
-  })
-
   ipcMain.handle('floatingWorkspace:isMinimized', (event) => {
     if (!isTrustedUIRenderer(event.sender)) {
       return false
     }
     return isFloatingWorkspacePopoutMinimized()
-  })
-
-  ipcMain.handle('floatingWorkspace:focus', (event) => {
-    if (!isTrustedUIRenderer(event.sender)) {
-      return false
-    }
-    return focusFloatingWorkspacePopout()
   })
 
   // Why removeListener first: register runs again on every core-handler setup, so re-adding blindly would fan out one broadcast per setup.

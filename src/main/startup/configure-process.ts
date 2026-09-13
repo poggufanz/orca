@@ -322,8 +322,7 @@ export function enableMainProcessGpuFeatures(): void {
   // Why: Blink evicts the oldest WebGL context past 16/renderer and each terminal pane holds one, silently downgrading panes to DOM.
   // 128 raises the ceiling for real layouts while staying bounded so context leaks still surface.
   app.commandLine.appendSwitch('max-active-webgl-contexts', '128')
-  // Why: allow restored webview media playback to resume across display transitions without requiring a manual gesture.
-  app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+  // Why: scoped to the floating-workspace popout via webPreferences.autoplayPolicy; a global switch would let ordinary tabs autoplay.
 
   const ozonePlatform = (app.commandLine.getSwitchValue('ozone-platform') ?? '').toLowerCase()
   const ozonePlatformHint = (process.env.ELECTRON_OZONE_PLATFORM_HINT ?? '').toLowerCase()

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SYNC_FIT_PANES_EVENT } from '@/constants/terminal'
-import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
+import {
+  findNextDisplay,
+  type WorkspaceDisplayInfo
+} from '../../../../shared/floating-workspace-display'
 import { captureAllLiveBrowserPageProgress } from '../browser-pane/host-guest/browser-page-progress-retention'
 import { setFloatingWorkspacePopoutDetached } from './floating-workspace-popout-shared-state'
 import { syncPopoutStyles } from './floating-workspace-popout-styles'
@@ -148,6 +151,13 @@ export function useFloatingWorkspacePopout() {
         }
       } catch (err) {
         console.warn('[floating-workspace] Error setting up popout document:', err)
+        // Why: without a container the window is unusable — dock is dead and the
+        // next detach opens a second window, so close it instead of orphaning.
+        try {
+          popup.close()
+        } catch {
+          // Already closed or teardown failed — clearing state below covers it.
+        }
         setIsDetached(false)
         setPortalContainer(null)
         setPopupWindow(null)
@@ -248,13 +258,12 @@ export function useFloatingWorkspacePopout() {
   const moveToNextDisplay = useCallback((): void => {
     void captureAllLiveBrowserPageProgress()
     if (!isDetached) {
-      if (displays.length === 0) {
+      // Why: the detached IPC path already prefers the first secondary on unknown displays.
+      const nextDisplay = findNextDisplay(displays, currentDisplayId)
+      if (!nextDisplay) {
         return
       }
-      // Why: always picking the first secondary sticks with 3+ monitors — cycle.
-      const currentIndex = displays.findIndex((d) => d.id === currentDisplayId)
-      const nextDisplay = displays[(currentIndex + 1 + displays.length) % displays.length]
-      detach(nextDisplay?.id)
+      detach(nextDisplay.id)
       return
     }
     void window.api?.floatingWorkspace?.moveToNextDisplay?.().then(() => {

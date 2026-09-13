@@ -187,15 +187,17 @@ export function restorePopoutWindow(
   window: BrowserWindow,
   displays: readonly WorkspaceDisplayInfo[]
 ): boolean {
+  const targetDisplay = resolveRestoreTarget(displays)
+  if (!targetDisplay) {
+    minimizedDisplayId = null
+    minimizedBounds = null
+    isRestoring = false
+    return false
+  }
   isRestoring = true
   const isMin = typeof window.isMinimized === 'function' ? window.isMinimized() : false
   if (isMin && typeof window.restore === 'function') {
     window.restore()
-  }
-  const targetDisplay = resolveRestoreTarget(displays)
-  if (!targetDisplay) {
-    isRestoring = false
-    return false
   }
 
   const isCurrentlyMax = typeof window.isMaximized === 'function' ? window.isMaximized() : false
@@ -208,10 +210,15 @@ export function restorePopoutWindow(
   if (!isBackgroundLaunch() && typeof window.focus === 'function') {
     window.focus()
   }
-  setTimeout(() => {
+  if (restoreTimeoutId) {
+    clearTimeout(restoreTimeoutId)
+    restoreTimeoutId = null
+  }
+  restoreTimeoutId = setTimeout(() => {
     minimizedDisplayId = null
     minimizedBounds = null
     isRestoring = false
+    restoreTimeoutId = null
   }, RESTORE_SETTLE_MS)
   return true
 }
@@ -299,14 +306,16 @@ export function installPopoutRestoreTracking(
     repositionPopoutToDisplay(window, getDisplays())
     if (restoreTimeoutId) {
       clearTimeout(restoreTimeoutId)
+      restoreTimeoutId = null
     }
     restoreTimeoutId = setTimeout(() => {
       repositionPopoutToDisplay(window, getDisplays())
-      setTimeout(() => {
+      restoreTimeoutId = setTimeout(() => {
         repositionPopoutToDisplay(window, getDisplays())
         minimizedDisplayId = null
         minimizedBounds = null
         isRestoring = false
+        restoreTimeoutId = null
         updateState()
       }, RESTORE_CONFIRM_MS)
     }, RESTORE_REPOSITION_MS)

@@ -10,6 +10,7 @@ import {
 import { assertClipboardTextWithinLimitWithYield } from '../../../../shared/clipboard-text'
 import { pasteTerminalClipboard } from './terminal-clipboard-paste'
 import { APP_MENU_PASTE_EVENT } from '@/lib/app-menu-paste'
+import { getDomRealm } from '@/lib/dom-realm'
 import {
   APP_MENU_SELECTION_ACTION_EVENT,
   type AppMenuSelectionAction
@@ -24,8 +25,8 @@ import {
 
 const NATIVE_CHAT_ROOT_SELECTOR = '[data-native-chat-root="true"]'
 
-function isInsideNativeChatRoot(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest(NATIVE_CHAT_ROOT_SELECTOR) !== null
+function isInsideNativeChatRoot(target: EventTarget | null, RealmElement: typeof Element): boolean {
+  return target instanceof RealmElement && target.closest(NATIVE_CHAT_ROOT_SELECTOR) !== null
 }
 
 export function registerTerminalPanePasteListeners({
@@ -51,6 +52,9 @@ export function registerTerminalPanePasteListeners({
   const { executePanePasteText, pasteFromClipboard } = execution
   let suppressNextNativePaste = false
   let pasteSuppressionTimerId: number | null = null
+  // Why: detached panes live in the popout document — main-realm instanceof
+  // misses their nodes and paste falls back to the wrong pane (or returns early).
+  const { Element: RealmElement } = getDomRealm(container.ownerDocument?.defaultView)
   const shouldSuppressNativePaste = (event: KeyboardEvent): boolean => {
     const key = event.key.toLowerCase()
     return (
@@ -72,8 +76,8 @@ export function registerTerminalPanePasteListeners({
   const onKeyPaste = (event: KeyboardEvent): void => {
     const target = event.target
     if (
-      (target instanceof Element && target.closest('[data-terminal-search-root]')) ||
-      isInsideNativeChatRoot(target)
+      (target instanceof RealmElement && target.closest('[data-terminal-search-root]')) ||
+      isInsideNativeChatRoot(target, RealmElement)
     ) {
       return
     }
@@ -108,7 +112,7 @@ export function registerTerminalPanePasteListeners({
     }
     // Why: the manager spans every pane — dispatch to the event target's pane.
     const targetPane =
-      target instanceof Element
+      target instanceof RealmElement
         ? manager.getPanes().find((pane) => pane.container?.contains(target))
         : undefined
     const pane = targetPane ?? manager.getActivePane() ?? manager.getPanes()[0]
@@ -129,8 +133,8 @@ export function registerTerminalPanePasteListeners({
   const onPaste = (event: ClipboardEvent): void => {
     const target = event.target
     if (
-      (target instanceof Element && target.closest('[data-terminal-search-root]')) ||
-      isInsideNativeChatRoot(target)
+      (target instanceof RealmElement && target.closest('[data-terminal-search-root]')) ||
+      isInsideNativeChatRoot(target, RealmElement)
     ) {
       return
     }
@@ -152,7 +156,7 @@ export function registerTerminalPanePasteListeners({
     }
     // Why: the manager spans every pane — dispatch to the event target's pane.
     const targetPane =
-      target instanceof Element
+      target instanceof RealmElement
         ? manager.getPanes().find((pane) => pane.container?.contains(target))
         : undefined
     const pane = targetPane ?? manager.getActivePane() ?? manager.getPanes()[0]
@@ -173,10 +177,10 @@ export function registerTerminalPanePasteListeners({
     const targetDoc = container.ownerDocument ?? document
     const activeElementAtDispatch = targetDoc.activeElement
     if (
-      !(activeElementAtDispatch instanceof Element) ||
+      !(activeElementAtDispatch instanceof RealmElement) ||
       !container.contains(activeElementAtDispatch) ||
       activeElementAtDispatch.closest('[data-terminal-search-root]') ||
-      isInsideNativeChatRoot(activeElementAtDispatch)
+      isInsideNativeChatRoot(activeElementAtDispatch, RealmElement)
     ) {
       return
     }
@@ -213,11 +217,11 @@ export function registerTerminalPanePasteListeners({
     const targetDoc = container.ownerDocument ?? document
     const activeElement = targetDoc.activeElement
     if (
-      !(activeElement instanceof Element) ||
+      !(activeElement instanceof RealmElement) ||
       !container.contains(activeElement) ||
       isEditableTarget(activeElement) ||
       activeElement.closest('[data-terminal-search-root]') ||
-      isInsideNativeChatRoot(activeElement)
+      isInsideNativeChatRoot(activeElement, RealmElement)
     ) {
       return
     }

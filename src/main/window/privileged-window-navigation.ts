@@ -23,7 +23,9 @@ export function installPrivilegedWindowNavigationPolicy(contents: WebContents): 
             webviewTag: true,
             contextIsolation: true,
             nodeIntegration: false,
-            sandbox: true
+            sandbox: true,
+            // Why: let restored popout media resume without a gesture; scoped here so ordinary tabs keep the default policy.
+            autoplayPolicy: 'no-user-gesture-required'
           }
         }
       }

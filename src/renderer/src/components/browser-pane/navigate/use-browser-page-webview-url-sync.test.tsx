@@ -78,4 +78,40 @@ describe('useBrowserPageWebviewUrlSync', () => {
     // The webview src is navigated to the new URL
     expect(webview.src).toBe('https://www.youtube.com/watch?v=newVideo')
   })
+
+  it('navigates when the target carries an explicit timestamp the webview lacks', () => {
+    const target = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120s'
+    const webview = createTestWebview('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=45s')
+    const webviewRef = { current: webview }
+    const lastKnownWebviewUrlRef = {
+      current: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=45s'
+    }
+    const trackNextLoadingEventRef = { current: false }
+
+    renderHook(() =>
+      useBrowserPageWebviewUrlSync({
+        browserTabId: 'tab-1',
+        browserTabUrl: target,
+        browserTabLoading: false,
+        isActive: true,
+        isPaintable: true,
+        slotViewport: document.createElement('div'),
+        webviewRef,
+        chromeHeaderRef: { current: null },
+        lastKnownWebviewUrlRef,
+        trackNextLoadingEventRef,
+        keepAddressBarFocusRef: { current: false },
+        addressBarInputRef: { current: null },
+        browserTabUrlRef: { current: target },
+        addressBarValueRef: { current: target },
+        onUpdatePageStateRef: { current: vi.fn() },
+        focusWebviewNow: vi.fn(() => true)
+      })
+    )
+
+    // Why: timestamp-only differences are otherwise equivalent — without the
+    // explicit-t check the seek to t=120s would be silently suppressed.
+    expect(webview.src).toBe(target)
+    expect(trackNextLoadingEventRef.current).toBe(true)
+  })
 })

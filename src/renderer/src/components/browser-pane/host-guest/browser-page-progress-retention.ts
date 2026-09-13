@@ -216,6 +216,8 @@ export function restoreBrowserPageProgress(
         }
         if (!wasPaused && media.paused) {
           media.play().catch(() => {});
+        } else if (wasPaused && !media.paused) {
+          media.pause();
         }
         return true;
       };

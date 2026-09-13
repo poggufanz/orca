@@ -8,7 +8,5 @@ export type FloatingWorkspaceApi = {
   identifyDisplays: () => Promise<boolean>
   onDisplaysChanged: (callback: (displays: WorkspaceDisplayInfo[]) => void) => () => void
   minimize: () => Promise<boolean>
-  restore: () => Promise<boolean>
   isMinimized: () => Promise<boolean>
-  focus: () => Promise<boolean>
 }

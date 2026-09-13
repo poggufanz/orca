@@ -34,15 +34,19 @@ function TooltipTrigger({
   // Why: Radix never sees a trigger pointerleave when focus jumps windows, so replay it on view blur to run its own close (also cancels a pending delayed open).
   const setTriggerNode = React.useCallback(
     (node: HTMLButtonElement | null) => {
-      if (typeof consumerRef === 'function') {
-        consumerRef(node)
-      } else if (consumerRef) {
+      // Why: React 19 refs may return a cleanup — retain it so unmount still
+      // releases consumer resources even though no call site passes one today.
+      const consumerCleanup = typeof consumerRef === 'function' ? consumerRef(node) : undefined
+      if (consumerRef && typeof consumerRef !== 'function') {
         consumerRef.current = node
       }
       cleanupRef.current?.()
       cleanupRef.current = null
       const view = node?.ownerDocument?.defaultView
       if (!node || !view || view.closed) {
+        if (typeof consumerCleanup === 'function') {
+          cleanupRef.current = consumerCleanup
+        }
         return
       }
       const closeOnViewBlur = (): void => {
@@ -51,7 +55,12 @@ function TooltipTrigger({
         }
       }
       view.addEventListener('blur', closeOnViewBlur)
-      cleanupRef.current = () => view.removeEventListener('blur', closeOnViewBlur)
+      cleanupRef.current = () => {
+        if (typeof consumerCleanup === 'function') {
+          consumerCleanup()
+        }
+        view.removeEventListener('blur', closeOnViewBlur)
+      }
     },
     [consumerRef]
   )
