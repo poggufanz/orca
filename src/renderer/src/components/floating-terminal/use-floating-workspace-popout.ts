@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SYNC_FIT_PANES_EVENT } from '@/constants/terminal'
 import type { WorkspaceDisplayInfo } from '../../../../shared/floating-workspace-display'
+import { captureAllLiveBrowserPageProgress } from '../browser-pane/host-guest/browser-page-progress-retention'
 import { setFloatingWorkspacePopoutDetached } from './floating-workspace-popout-shared-state'
 import { syncPopoutStyles } from './floating-workspace-popout-styles'
 
@@ -42,6 +43,7 @@ export function useFloatingWorkspacePopout() {
   }, [])
 
   const dock = useCallback((): void => {
+    void captureAllLiveBrowserPageProgress()
     if (refreshTimeoutRef.current !== null) {
       window.clearTimeout(refreshTimeoutRef.current)
       refreshTimeoutRef.current = null
@@ -58,6 +60,7 @@ export function useFloatingWorkspacePopout() {
 
   const detach = useCallback(
     (targetDisplayId?: number): void => {
+      void captureAllLiveBrowserPageProgress()
       if (popupRef.current && !popupRef.current.closed) {
         const live = popupRef.current
         // Why: after a popout reload the old container is detached — re-query it.
@@ -241,6 +244,7 @@ export function useFloatingWorkspacePopout() {
   }, [isDetached, portalContainer])
 
   const moveToNextDisplay = useCallback((): void => {
+    void captureAllLiveBrowserPageProgress()
     if (!isDetached) {
       if (displays.length === 0) {
         return
@@ -258,6 +262,7 @@ export function useFloatingWorkspacePopout() {
 
   const moveToDisplay = useCallback(
     (displayId: number): void => {
+      void captureAllLiveBrowserPageProgress()
       if (!isDetached) {
         detach(displayId)
         return

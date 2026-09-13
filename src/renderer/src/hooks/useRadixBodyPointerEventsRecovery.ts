@@ -12,7 +12,7 @@ function hasActiveRadixModal(doc: Document = document): boolean {
 }
 
 function clearStaleBodyPointerEvents(doc: Document = document): void {
-  if (doc.body.style.pointerEvents !== 'none' || hasActiveRadixModal(doc)) {
+  if (doc.body?.style?.pointerEvents !== 'none' || hasActiveRadixModal(doc)) {
     return
   }
   doc.body.style.pointerEvents = ''
@@ -47,6 +47,14 @@ export function useRadixBodyPointerEventsRecovery(targetDocument?: Document | nu
     }
 
     scheduleRecovery()
+
+    if (typeof MutationObserver === 'undefined') {
+      return () => {
+        if (frameId !== null && win && typeof win.cancelAnimationFrame === 'function') {
+          win.cancelAnimationFrame(frameId)
+        }
+      }
+    }
 
     const observer = new MutationObserver(scheduleRecovery)
     // Why: Radix can leave body pointer-events locked after a modal unmounts.

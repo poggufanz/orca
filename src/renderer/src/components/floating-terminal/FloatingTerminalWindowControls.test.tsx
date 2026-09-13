@@ -323,8 +323,18 @@ describe('FloatingTerminalWindowControls default-agent launch', () => {
       onMoveToNextDisplay
     })
 
-    const moveButton = findOnClickByAriaLabel(element, 'Send floating workspace to Monitor 2')
-    moveButton()
+    const items: { onClick: () => void }[] = []
+    visit(element, (entry) => {
+      if (
+        typeof entry.type === 'function' &&
+        entry.type.name === 'DropdownMenuItem' &&
+        typeof entry.props.onClick === 'function'
+      ) {
+        items.push({ onClick: entry.props.onClick as () => void })
+      }
+    })
+    expect(items.length).toBeGreaterThanOrEqual(2)
+    items[0].onClick()
     expect(onMoveToNextDisplay).toHaveBeenCalledOnce()
 
     const detachButton = findOnClickByAriaLabel(

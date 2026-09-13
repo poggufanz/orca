@@ -4,6 +4,7 @@ import {
   normalizeBrowserNavigationUrl,
   redactKagiSessionToken
 } from '../../../../../shared/browser-url'
+import { isEquivalentBrowserPageUrl } from '../../../../../shared/browser-url-equivalence'
 import { ORCA_BROWSER_BLANK_URL } from '../../../../../shared/constants'
 import {
   applyBrowserPageViewportLayout,
@@ -93,11 +94,15 @@ export function useBrowserPageWebviewUrlSync({
     }
     const normalizedLiveUrl = liveUrl ? (normalizeBrowserNavigationUrl(liveUrl) ?? liveUrl) : null
     const declaredSrc = webview.getAttribute('src')
-    if (
-      normalizedLiveUrl !== normalizedUrl &&
-      webview.src !== normalizedUrl &&
-      declaredSrc !== normalizedUrl
-    ) {
+    const matchesLive =
+      normalizedLiveUrl === normalizedUrl ||
+      isEquivalentBrowserPageUrl(normalizedLiveUrl, normalizedUrl)
+    const matchesSrc =
+      webview.src === normalizedUrl || isEquivalentBrowserPageUrl(webview.src, normalizedUrl)
+    const matchesDeclared =
+      declaredSrc === normalizedUrl || isEquivalentBrowserPageUrl(declaredSrc, normalizedUrl)
+
+    if (!matchesLive && !matchesSrc && !matchesDeclared) {
       // Why: browserTab.url changes are Orca-driven navigations; gate did-start-loading so only real navigations show loading UI.
       trackNextLoadingEventRef.current = normalizedUrl !== ORCA_BROWSER_BLANK_URL
       lastKnownWebviewUrlRef.current = normalizedUrl

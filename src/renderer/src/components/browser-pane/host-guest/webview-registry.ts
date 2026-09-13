@@ -1,5 +1,10 @@
 import { clearLiveBrowserUrl } from '../describe-page/live-browser-url-registry'
 import {
+  clearBrowserPageProgress,
+  ensureBrowserPageProgressTracking,
+  stopBrowserPageProgressTracking
+} from './browser-page-progress-retention'
+import {
   clearBrowserPageViewportPresetSize,
   removeBrowserPageViewport
 } from './browser-page-viewport'
@@ -184,6 +189,7 @@ export function registerPersistentWebview(
   webviewRegistry.set(browserTabId, webview)
   applyCurrentDragPassthroughToWebview(webview)
   ensureDragListeners()
+  ensureBrowserPageProgressTracking()
 }
 
 export function unregisterPersistentWebview(browserTabId: string): void {
@@ -205,6 +211,7 @@ export function unregisterPersistentWebview(browserTabId: string): void {
   webviewRegistry.delete(browserTabId)
   if (webviewRegistry.size === 0) {
     removeDragListeners()
+    stopBrowserPageProgressTracking()
   }
 }
 
@@ -256,9 +263,10 @@ function removePersistentWebview(
     if (!preserveViewport) {
       clearBrowserPageViewportPresetSize(browserTabId)
       removeBrowserPageViewport(browserTabId)
+      clearLiveBrowserUrl(browserTabId)
+      clearBrowserPageProgress(browserTabId)
     }
     registeredWebContentsIds.delete(browserTabId)
-    clearLiveBrowserUrl(browserTabId)
     return Promise.resolve()
   }
   const unregisterGuest = Promise.resolve(
@@ -270,9 +278,10 @@ function removePersistentWebview(
   if (!preserveViewport) {
     clearBrowserPageViewportPresetSize(browserTabId)
     removeBrowserPageViewport(browserTabId)
+    clearLiveBrowserUrl(browserTabId)
+    clearBrowserPageProgress(browserTabId)
   }
   registeredWebContentsIds.delete(browserTabId)
-  clearLiveBrowserUrl(browserTabId)
   return unregisterGuest
 }
 
